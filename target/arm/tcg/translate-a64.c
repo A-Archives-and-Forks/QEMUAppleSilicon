@@ -18,6 +18,7 @@
  */
 #include "qemu/osdep.h"
 #include "exec/target_page.h"
+#include "tcg/tcg-op-common.h"
 #include "translate.h"
 #include "translate-a64.h"
 #include "qemu/log.h"
@@ -935,8 +936,7 @@ static void gen_add64_CC(TCGv_i64 dest, TCGv_i64 t0, TCGv_i64 t1)
     flag = tcg_temp_new_i64();
     tmp = tcg_temp_new_i64();
 
-    tcg_gen_movi_i64(tmp, 0);
-    tcg_gen_add2_i64(result, flag, t0, tmp, t1, tmp);
+    tcg_gen_add2_i64(result, flag, t0, tcg_constant_i64(0), t1, tcg_constant_i64(0));
 
     tcg_gen_extrl_i64_i32(cpu_CF, flag);
 
@@ -8365,10 +8365,10 @@ TRANS(AND_r, do_logic_reg, a, tcg_gen_and_i64, tcg_gen_andc_i64, false)
 TRANS(ANDS_r, do_logic_reg, a, tcg_gen_and_i64, tcg_gen_andc_i64, true)
 TRANS(EOR_r, do_logic_reg, a, tcg_gen_xor_i64, tcg_gen_eqv_i64, false)
 
-static bool do_addsub_ext(DisasContext *s, arg_addsub_ext *a,
+static inline bool do_addsub_ext(DisasContext *s, arg_addsub_ext *a,
                           bool sub_op, bool setflags)
 {
-    TCGv_i64 tcg_rm, tcg_rn, tcg_rd, tcg_result;
+    TCGv_i64 tcg_rm, tcg_rn, tcg_rd;
 
     if (a->sa > 4) {
         return false;
@@ -8385,25 +8385,21 @@ static bool do_addsub_ext(DisasContext *s, arg_addsub_ext *a,
     tcg_rm = read_cpu_reg(s, a->rm, a->sf);
     ext_and_shift_reg(tcg_rm, tcg_rm, a->st, a->sa);
 
-    tcg_result = tcg_temp_new_i64();
     if (!setflags) {
         if (sub_op) {
-            tcg_gen_sub_i64(tcg_result, tcg_rn, tcg_rm);
+            tcg_gen_sub_i64(tcg_rd, tcg_rn, tcg_rm);
         } else {
-            tcg_gen_add_i64(tcg_result, tcg_rn, tcg_rm);
+            tcg_gen_add_i64(tcg_rd, tcg_rn, tcg_rm);
+        }
+        if (!a->sf) {
+            tcg_gen_ext32u_i64(tcg_rd, tcg_rd);
         }
     } else {
         if (sub_op) {
-            gen_sub_CC(a->sf, tcg_result, tcg_rn, tcg_rm);
+            gen_sub_CC(a->sf, tcg_rd, tcg_rn, tcg_rm);
         } else {
-            gen_add_CC(a->sf, tcg_result, tcg_rn, tcg_rm);
+            gen_add_CC(a->sf, tcg_rd, tcg_rn, tcg_rm);
         }
-    }
-
-    if (a->sf) {
-        tcg_gen_mov_i64(tcg_rd, tcg_result);
-    } else {
-        tcg_gen_ext32u_i64(tcg_rd, tcg_result);
     }
     return true;
 }
@@ -8413,10 +8409,10 @@ TRANS(SUB_ext, do_addsub_ext, a, true, false)
 TRANS(ADDS_ext, do_addsub_ext, a, false, true)
 TRANS(SUBS_ext, do_addsub_ext, a, true, true)
 
-static bool do_addsub_reg(DisasContext *s, arg_addsub_shift *a,
+static inline bool do_addsub_reg(DisasContext *s, arg_addsub_shift *a,
                           bool sub_op, bool setflags)
 {
-    TCGv_i64 tcg_rd, tcg_rn, tcg_rm, tcg_result;
+    TCGv_i64 tcg_rd, tcg_rn, tcg_rm;
 
     if (a->st == 3 || (!a->sf && (a->sa & 32))) {
         return false;
@@ -8428,25 +8424,21 @@ static bool do_addsub_reg(DisasContext *s, arg_addsub_shift *a,
 
     shift_reg_imm(tcg_rm, tcg_rm, a->sf, a->st, a->sa);
 
-    tcg_result = tcg_temp_new_i64();
     if (!setflags) {
         if (sub_op) {
-            tcg_gen_sub_i64(tcg_result, tcg_rn, tcg_rm);
+            tcg_gen_sub_i64(tcg_rd, tcg_rn, tcg_rm);
         } else {
-            tcg_gen_add_i64(tcg_result, tcg_rn, tcg_rm);
+            tcg_gen_add_i64(tcg_rd, tcg_rn, tcg_rm);
+        }
+        if (!a->sf) {
+            tcg_gen_ext32u_i64(tcg_rd, tcg_rd);
         }
     } else {
         if (sub_op) {
-            gen_sub_CC(a->sf, tcg_result, tcg_rn, tcg_rm);
+            gen_sub_CC(a->sf, tcg_rd, tcg_rn, tcg_rm);
         } else {
-            gen_add_CC(a->sf, tcg_result, tcg_rn, tcg_rm);
+            gen_add_CC(a->sf, tcg_rd, tcg_rn, tcg_rm);
         }
-    }
-
-    if (a->sf) {
-        tcg_gen_mov_i64(tcg_rd, tcg_result);
-    } else {
-        tcg_gen_ext32u_i64(tcg_rd, tcg_result);
     }
     return true;
 }
