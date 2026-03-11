@@ -21,10 +21,9 @@
 
 #include "qemu/osdep.h"
 #include "exec/page-vary.h"
+#include "qemu/atomic.h"
 
-/* WARNING: This file must *not* be complied with -flto. */
-
-TargetPageBits target_page;
+volatile TargetPageBits target_page;
 
 bool set_preferred_target_page_bits_common(int bits)
 {
@@ -39,6 +38,7 @@ bool set_preferred_target_page_bits_common(int bits)
             return false;
         }
         target_page.bits = bits;
+        smp_wmb();
     }
     return true;
 }
@@ -50,4 +50,5 @@ void finalize_target_page_bits_common(int min)
     }
     target_page.mask = -1ull << target_page.bits;
     target_page.decided = true;
+    smp_wmb();
 }
