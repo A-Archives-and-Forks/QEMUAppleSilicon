@@ -3960,6 +3960,9 @@ liveness_pass_1(TCGContext *s)
         s->temps[i].state_ptr = prefs + i;
     }
 
+    /* ??? Should be redundant with the exit_tb that ends the TB.  */
+    la_func_end(s, nb_globals, nb_temps);
+
     s->carry_live = false;
     QTAILQ_FOREACH_REVERSE_SAFE(op, &s->ops, link, op_prev) {
         int nb_iargs, nb_oargs;
