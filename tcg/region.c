@@ -475,6 +475,30 @@ static size_t tcg_n_regions(size_t tb_size, unsigned max_threads)
   (DEFAULT_CODE_GEN_BUFFER_SIZE_1 < MAX_CODE_GEN_BUFFER_SIZE \
    ? DEFAULT_CODE_GEN_BUFFER_SIZE_1 : MAX_CODE_GEN_BUFFER_SIZE)
 
+#if defined(_WIN32)
+static int alloc_code_gen_buffer(size_t size, int splitwx, Error **errp)
+{
+    void *buf;
+
+    if (splitwx > 0) {
+        error_setg(errp, "jit split-wx not supported");
+        return -1;
+    }
+
+    buf = VirtualAlloc(NULL, size, MEM_RESERVE | MEM_COMMIT,
+                             PAGE_EXECUTE_READWRITE);
+    if (buf == NULL) {
+        error_setg_win32(errp, GetLastError(),
+                         "allocate %zu bytes for jit buffer", size);
+        return false;
+    }
+
+    region.start_aligned = buf;
+    region.total_size = size;
+
+    return PROT_READ | PROT_WRITE | PROT_EXEC;
+}
+#else
 static int alloc_code_gen_buffer_anon(size_t size, int prot,
                                       int flags, Error **errp)
 {
@@ -491,6 +515,7 @@ static int alloc_code_gen_buffer_anon(size_t size, int prot,
     region.total_size = size;
     return prot;
 }
+#endif /* WIN32 */
 
 #ifndef CONFIG_TCG_INTERPRETER
 #ifdef CONFIG_POSIX
