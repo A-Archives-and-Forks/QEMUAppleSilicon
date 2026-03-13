@@ -915,7 +915,7 @@ void apple_boot_setup_bootargs(uint32_t build_version, AddressSpace *as,
                                vaddr dtb_size, AppleVideoArgs *video_args,
                                const char *cmdline, hwaddr mem_size_actual)
 {
-    if (BUILD_VERSION_MAJOR(build_version) >= 18) {
+    if (BUILD_VERSION_MAJOR(build_version) >= 17) {
         apple_boot_setup_bootargs_rev3(as, addr, virt_base, phys_base, mem_size,
                                        kernel_top, dtb_va, dtb_size, video_args,
                                        cmdline, mem_size_actual);
