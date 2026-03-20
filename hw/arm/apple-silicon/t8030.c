@@ -2051,6 +2051,13 @@ static void t8030_create_misc(AppleT8030MachineState *t8030)
     // setting 0 results in defaulting to 2400000
     apple_dt_set_prop_u32(child, "transport-speed", 2400000);
 
+    apple_dt_set_prop(child, "local-mac-address", 6,
+                      (const uint8_t[]){ 0xDE, 0xAD, 0xBE, 0xEF, 0x42, 0x42 });
+
+    child = apple_dt_get_node(t8030->device_tree, "chosen");
+    apple_dt_set_prop(child, "mac-address-bluetooth0", 6,
+                      (const uint8_t[]){ 0xDE, 0xAD, 0xBE, 0xEF, 0x42, 0x42 });
+
     // child = apple_dt_get_node(armio, "wlan");
     // assert_nonnull(child);
 }
