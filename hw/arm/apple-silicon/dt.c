@@ -262,7 +262,7 @@ AppleDTProp *apple_dt_set_prop_strn(AppleDTNode *node, const char *name,
 {
     g_autofree char *buf;
 
-    buf = g_malloc0(max_len);
+    buf = g_malloc(max_len);
     strncpy(buf, val, max_len);
     return apple_dt_set_prop(node, name, max_len, buf);
 }
