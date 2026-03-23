@@ -344,11 +344,11 @@ char *apple_dt_get_prop_strdup_or(AppleDTNode *node, const char *name,
         if (prop->len != sizeof(default_val)) {                                \
             if (prop->len < sizeof(default_val)) {                             \
                 error_setg(&error_fatal,                                       \
-                           "`%s` len mismatch; wanted: %ld, actual: %d", name, \
+                           "`%s` len mismatch; wanted: %zu, actual: %u", name, \
                            sizeof(default_val), prop->len);                    \
             } else {                                                           \
                 error_setg(invalid_errp,                                       \
-                           "`%s` len mismatch; wanted: %ld, actual: %d", name, \
+                           "`%s` len mismatch; wanted: %zu, actual: %u", name, \
                            sizeof(default_val), prop->len);                    \
             }                                                                  \
         }                                                                      \
@@ -557,6 +557,9 @@ static uint32_t apple_dt_prop_placeholder_len(AppleDTProp *prop)
 
         if (strncmp(token, "zeroes/", 7) == 0) {
             len = g_ascii_strtoull(token + 7, NULL, 0);
+            if (len == 0) {
+                continue;
+            }
             g_free(string);
             return len;
         }
@@ -600,6 +603,7 @@ static void apple_dt_serialise_node(AppleDTNode *node, void **buf)
             *buf += APPLE_DT_PROP_NAME_LEN;
             stl_le_p(*buf, placeholder_len);
             *buf += sizeof(uint32_t);
+            memset(*buf, 0, placeholder_len);
             *buf += ROUND_UP(placeholder_len, 4);
         } else {
             strncpy(*buf, key, APPLE_DT_PROP_NAME_LEN);
@@ -633,7 +637,8 @@ static uint64_t apple_dt_prop_serialised_len(AppleDTProp *prop)
         if (placeholder_len == 0) {
             return 0;
         }
-        return APPLE_DT_PROP_NAME_LEN + ROUND_UP(placeholder_len, 4);
+        return APPLE_DT_PROP_NAME_LEN + sizeof(prop->len) +
+               ROUND_UP(placeholder_len, 4);
     }
 
     return APPLE_DT_PROP_NAME_LEN + sizeof(prop->len) + ROUND_UP(prop->len, 4);
