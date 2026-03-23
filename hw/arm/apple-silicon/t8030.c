@@ -2055,6 +2055,7 @@ static void t8030_create_misc(AppleT8030MachineState *t8030)
                       (const uint8_t[]){ 0xDE, 0xAD, 0xBE, 0xEF, 0x42, 0x42 });
 
     child = apple_dt_get_node(t8030->device_tree, "chosen");
+    assert_nonnull(child);
     apple_dt_set_prop(child, "mac-address-bluetooth0", 6,
                       (const uint8_t[]){ 0xDE, 0xAD, 0xBE, 0xEF, 0x42, 0x42 });
 
