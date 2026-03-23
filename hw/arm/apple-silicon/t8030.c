@@ -2039,18 +2039,6 @@ static void t8030_create_misc(AppleT8030MachineState *t8030)
     child = apple_dt_get_node(armio, "bluetooth");
     assert_nonnull(child);
 
-    // 0x0 = USB
-    // 0x1 = HS
-    // 0x2 = H4DS
-    // 0x3 = H4BC (UART?)
-    // 0x4 = H5
-    // 0x5 = BCSP Transport not supported, fallback USB
-    // 0x6 = APPLEBT
-    // 0x7 = PCIE, the original value
-    apple_dt_set_prop_u32(child, "transport-encoding", 0);
-    // setting 0 results in defaulting to 2400000
-    apple_dt_set_prop_u32(child, "transport-speed", 2400000);
-
     apple_dt_set_prop(child, "local-mac-address", 6,
                       (const uint8_t[]){ 0xDE, 0xAD, 0xBE, 0xEF, 0x42, 0x42 });
 
