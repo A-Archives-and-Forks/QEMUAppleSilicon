@@ -653,6 +653,8 @@ void apple_boot_finalise_dt(AppleDTNode *root, AddressSpace *as,
     const char *crypto_hash_method;
     AppleDTProp *prop;
 
+    set_memory_range(root, "DeviceTree", info->device_tree_addr,
+                     info->device_tree_size);
     set_memory_range(root, "RAMDisk", info->ramdisk_addr, info->ramdisk_size);
     set_memory_range(root, "TrustCache", info->trustcache_addr,
                      info->trustcache_size);
@@ -688,9 +690,6 @@ void apple_boot_finalise_dt(AppleDTNode *root, AddressSpace *as,
             return;
         }
     }
-
-    set_memory_range(root, "DeviceTree", info->device_tree_addr,
-                     info->device_tree_size);
 
     buf = g_malloc0(info->device_tree_size);
     apple_dt_serialise(root, buf);
