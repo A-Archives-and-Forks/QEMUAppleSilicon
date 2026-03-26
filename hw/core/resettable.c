@@ -241,11 +241,6 @@ void resettable_change_parent(Object *obj, Object *newp, Object *oldp)
     }
 }
 
-void resettable_cold_reset_fn(void *opaque)
-{
-    resettable_reset((Object *) opaque, RESET_TYPE_COLD);
-}
-
 static const TypeInfo resettable_interface_info = {
     .name       = TYPE_RESETTABLE_INTERFACE,
     .parent     = TYPE_INTERFACE,
