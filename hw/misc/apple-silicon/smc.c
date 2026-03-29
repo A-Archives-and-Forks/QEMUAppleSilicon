@@ -494,7 +494,7 @@ SysBusDevice *apple_smc_create(AppleDTNode *node, AppleA7IOPVersion version,
     uint16_t batt_remaining_capacity =
         batt_full_charge_capacity - batt_current_capacity;
     // b0fv might mean "battery full voltage"
-    uint32_t b0fv = 0x201;
+    uint32_t battery_fw_version = 0x201;
     uint8_t battery_count = 0x1;
     uint16_t batt_cell_voltage = 4200;
     int16_t batt_actual_amperage = 0x0;
@@ -638,8 +638,8 @@ SysBusDevice *apple_smc_create(AppleDTNode *node, AppleA7IOPVersion version,
                       SMC_KEY_TYPE_UINT16, SMC_ATTR_R_LE,
                       &batt_remaining_capacity);
     // should actually be a function
-    apple_smc_add_key(s, 'B0FV', sizeof(b0fv), SMC_KEY_TYPE_HEX, SMC_ATTR_R_LE,
-                      &b0fv);
+    apple_smc_add_key(s, 'B0FV', sizeof(battery_fw_version), SMC_KEY_TYPE_HEX,
+                      SMC_ATTR_R_LE, &battery_fw_version);
     const uint8_t bdd1 = 0x19;
     apple_smc_add_key(s, 'BDD1', sizeof(bdd1), SMC_KEY_TYPE_UINT8,
                       SMC_ATTR_R_LE, &bdd1);
