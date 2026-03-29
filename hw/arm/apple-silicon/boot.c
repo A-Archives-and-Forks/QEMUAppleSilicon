@@ -237,23 +237,18 @@ static const char *REM_PROPS[] = {
 #endif
 };
 
-static void *srawmemchr(void *str, int chr)
+static const char *srawmemchr(const char *str, int chr)
 {
-    uint8_t *ptr = (uint8_t *)str;
-
-    while (*ptr != chr) {
-        ptr++;
+    while (*str != chr) {
+        str++;
     }
 
-    return ptr;
+    return str;
 }
 
 static uint64_t sstrlen(const char *str)
 {
-    const int chr = *(uint8_t *)"$";
-    char *end = srawmemchr((void *)str, chr);
-
-    return end - str;
+    return srawmemchr(str, '$') - str;
 }
 
 static void apple_boot_process_dt_node(AppleDTNode *node, AppleDTNode *parent)
@@ -265,8 +260,7 @@ static void apple_boot_process_dt_node(AppleDTNode *node, AppleDTNode *parent)
     uint64_t i;
     bool found;
 
-    prop = apple_dt_get_prop(node, "compatible");
-    if (prop != NULL) {
+    if ((prop = apple_dt_get_prop(node, "compatible")) != NULL) {
         assert_nonnull(prop->data);
         found = false;
         for (count = sizeof(KEEP_COMP) / sizeof(KEEP_COMP[0]), i = 0; i < count;
@@ -289,8 +283,7 @@ static void apple_boot_process_dt_node(AppleDTNode *node, AppleDTNode *parent)
         }
     }
 
-    prop = apple_dt_get_prop(node, "name");
-    if (prop != NULL) {
+    if ((prop = apple_dt_get_prop(node, "name")) != NULL) {
         assert_nonnull(prop->data);
         for (count = sizeof(REM_NAMES) / sizeof(REM_NAMES[0]), i = 0; i < count;
              i++) {
@@ -305,8 +298,7 @@ static void apple_boot_process_dt_node(AppleDTNode *node, AppleDTNode *parent)
         }
     }
 
-    prop = apple_dt_get_prop(node, "device_type");
-    if (prop != NULL) {
+    if ((prop = apple_dt_get_prop(node, "device_type")) != NULL) {
         assert_nonnull(prop->data);
         for (count = sizeof(REM_DEV_TYPES) / sizeof(REM_DEV_TYPES[0]), i = 0;
              i < count; i++) {
@@ -363,7 +355,7 @@ static void extract_im4p_payload(const char *filename, char *payload_type,
 
     if (asn1_array2tree(img4_definitions_array, &img4_definitions,
                         errorDescription) != ASN1_SUCCESS) {
-        error_setg(&error_fatal, "ASN.1 parser initialisation failed: `%s`.",
+        error_setg(&error_fatal, "ASN.1 parser initialisation failed: `%s`",
                    errorDescription);
         return;
     }
@@ -389,20 +381,20 @@ static void extract_im4p_payload(const char *filename, char *payload_type,
     len = 4;
     ret = asn1_read_value(img4, "magic", magic, &len);
     if (ret != ASN1_SUCCESS) {
-        error_setg(&error_fatal, "im4p magic read for `%s` failed: %d.",
+        error_setg(&error_fatal, "im4p magic read for `%s` failed: %d",
                    filename, ret);
         return;
     }
 
     if (memcmp(magic, "IM4P", 4) != 0) {
-        error_setg(&error_fatal, "`%s` is not an img4 payload.", filename);
+        error_setg(&error_fatal, "`%s` is not an img4 payload", filename);
         return;
     }
 
     len = 4;
     ret = asn1_read_value(img4, "type", payload_type, &len);
     if (ret != ASN1_SUCCESS) {
-        error_setg(&error_fatal, "img4 payload type read for `%s` failed: %d.",
+        error_setg(&error_fatal, "img4 payload type read for `%s` failed: %d",
                    filename, ret);
         return;
     }
@@ -411,7 +403,7 @@ static void extract_im4p_payload(const char *filename, char *payload_type,
     ret = asn1_read_value(img4, "description", description, &len);
     if (ret != ASN1_SUCCESS) {
         error_setg(&error_fatal,
-                   "img4 payload description read for `%s` failed: %d.",
+                   "img4 payload description read for `%s` failed: %d",
                    filename, ret);
         return;
     }
@@ -419,7 +411,7 @@ static void extract_im4p_payload(const char *filename, char *payload_type,
     len = 0;
     ret = asn1_read_value(img4, "data", NULL, &len);
     if (ret != ASN1_MEM_ERROR) {
-        error_setg(&error_fatal, "img4 payload size read for `%s` failed: %d.",
+        error_setg(&error_fatal, "img4 payload size read for `%s` failed: %d",
                    filename, ret);
         return;
     }
@@ -429,7 +421,7 @@ static void extract_im4p_payload(const char *filename, char *payload_type,
     g_free(file_data);
 
     if (ret != ASN1_SUCCESS) {
-        error_setg(&error_fatal, "img4 payload read for `%s` failed: %d.",
+        error_setg(&error_fatal, "img4 payload read for `%s` failed: %d",
                    filename, ret);
         return;
     }
@@ -466,7 +458,7 @@ static void extract_im4p_payload(const char *filename, char *payload_type,
         int decoded_length =
             decompress_lzss(decode_buffer, comp_header->data, compressed_size);
         if (decoded_length == 0 || decoded_length != uncompressed_size) {
-            error_setg(&error_fatal, "LZSS decompression for `%s` failed.",
+            error_setg(&error_fatal, "LZSS decompression for `%s` failed",
                        filename);
             g_free(decode_buffer);
             return;
@@ -718,8 +710,8 @@ uint8_t *apple_boot_load_trustcache_file(const char *filename, uint64_t *size)
         memcmp(payload_type, "rtsc", 4) != 0 &&
         memcmp(payload_type, "raw", 4) != 0) {
         error_setg(&error_fatal,
-                   "`%s` is a `%.4s` object (expected `trst`/`rtsc`).",
-                   filename, payload_type);
+                   "`%s` is a `%.4s` object (expected `trst`/`rtsc`)", filename,
+                   payload_type);
         return NULL;
     }
 
