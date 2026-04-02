@@ -1650,6 +1650,7 @@ static uint64_t trng_regs_reg_read(void *opaque, hwaddr addr, unsigned size)
         ret = TRNG_STATUS_READY | TRNG_STATUS_TEST_READY;
         break;
     case REG_TRNG_CONTROL:
+        s->config &= ~TRNG_CONTROL_RESEED;
         ret = s->config;
         // if (enabled) {
         //     apple_a7iop_interrupt_status_push(sep->mailbox,
@@ -3933,6 +3934,37 @@ static const MemoryRegionOps progress_reg_ops = {
     .valid.unaligned = false,
 };
 
+static void apple_sep_cpu_moni_reset_regs(CPUState *cpu, hwaddr load_addr, hwaddr pwr_dn_save)
+{
+    ARMCPU *arm_cpu = container_of(cpu, ARMCPU, parent_obj);
+    AppleA13State *acpu = container_of(arm_cpu, AppleA13State, parent_obj);
+    CPUARMState *env = &arm_cpu->env;
+    acpu->A13_CPREG_VAR_NAME(ARM64_REG_HID5) = 0x0;
+    acpu->A13_CPREG_VAR_NAME(S3_4_c15_c0_5) = 0x0;
+    // clearing ttbr0_el1 is absolutely required for sepfw 26
+    // not clearing everything will lead to some tcg/tlb sigsegv
+    // not sure whether to only clear _el[1] or the entries of every el
+    // but let's clear all. at least "ttbr1_el[1]" seems also to be required.
+    memset(env->regs, 0, sizeof(env->regs));
+    memset(env->xregs, 0, sizeof(env->xregs));
+    memset(env->cp15.ttbr0_el, 0, sizeof(env->cp15.ttbr0_el));
+    memset(env->cp15.ttbr1_el, 0, sizeof(env->cp15.ttbr1_el));
+    memset(env->cp15.mair_el, 0, sizeof(env->cp15.mair_el));
+    memset(env->elr_el, 0, sizeof(env->elr_el));
+    // should sp_el be clear/zero before and after?
+    memset(env->sp_el, 0, sizeof(env->sp_el));
+    memset(env->cp15.esr_el, 0, sizeof(env->cp15.esr_el));
+    memset(env->banked_spsr, 0, sizeof(env->banked_spsr));
+    memset(env->cp15.tcr_el, 0, sizeof(env->cp15.tcr_el));
+    memset(env->cp15.sctlr_el, 0, sizeof(env->cp15.sctlr_el));
+    memset(&env->keys, 0, sizeof(env->keys));
+
+    acpu->A13_CPREG_VAR_NAME(SYS_ACC_PWR_DN_SAVE) = pwr_dn_save;
+    env->cp15.rvbar = load_addr;
+    env->cp15.vbar_el[1] = load_addr;
+    cpu_set_pc(cpu, load_addr);
+}
+
 // some race conditions might happen before, during and/or after the jump.
 static void apple_sep_cpu_moni_jump(CPUState *cpu, run_on_cpu_data data)
 {
@@ -3947,16 +3979,26 @@ static void apple_sep_cpu_moni_jump(CPUState *cpu, run_on_cpu_data data)
         return;
     }
 
+    // some specific, non currently used(?), cpu_ functions will require bql
+    // BQL_LOCK_GUARD();
+
     DPRINTF("%s: before cpu_set_pc: base=0x%" VADDR_PRIX "\n", __func__,
             load_addr);
 
-    cpu_set_pc(cpu, load_addr);
+    AppleA13State *acpu = container_of(arm_cpu, AppleA13State, parent_obj);
+    hwaddr pwr_dn_save = acpu->A13_CPREG_VAR_NAME(SYS_ACC_PWR_DN_SAVE);
+    cpu_pause(cpu);
+    apple_sep_cpu_moni_reset_regs(cpu, load_addr, pwr_dn_save);
 
     // possible workaround for intermittent sep boot errors
+    // does it matter whether a tlb_flush happens before or after a write?
     if (tcg_enabled()) {
         arm_rebuild_hflags(&arm_cpu->env);
         tb_flush__exclusive_or_serial();
+        tlb_flush(cpu);
     }
+    cpu_resume(cpu);
+    // using qemu_irq_raise ARM_CPU_IRQ here will cause a7iop atomic sigsegv
 }
 
 static void apple_sep_iop_start(AppleA7IOP *s)
@@ -4073,10 +4115,10 @@ AppleSEPState *apple_sep_from_node(AppleDTNode *node, MemoryRegion *ool_mr,
     memory_region_init_alias(mr0, OBJECT(s), "sep_dma", ool_mr, 0,
                              SEP_DMA_MAPPING_SIZE);
     if (modern) {
-        s->cpu = &apple_a13_create("sep-cpu", cpu_id, 0, -1, 'P')->parent_obj;
+        s->cpu = &apple_a13_create("sep-cpu", cpu_id, BIT_ULL(30), -1, 'S')->parent_obj;
         memory_region_add_subregion(&APPLE_A13(s->cpu)->memory, 0, mr0);
     } else {
-        s->cpu = &apple_a9_create("sep-cpu", cpu_id, 0)->parent_obj;
+        s->cpu = &apple_a9_create("sep-cpu", cpu_id, BIT_ULL(30))->parent_obj;
         object_property_set_bool(OBJECT(s->cpu), "aarch64", false, NULL);
         unset_feature(&s->cpu->env, ARM_FEATURE_AARCH64);
         memory_region_add_subregion(&APPLE_A9(s->cpu)->memory, 0, mr0);
@@ -4283,6 +4325,7 @@ AppleSEPState *apple_sep_from_node(AppleDTNode *node, MemoryRegion *ool_mr,
 static void apple_sep_cpu_reset_work(CPUState *cpu, run_on_cpu_data data)
 {
     AppleSEPState *s = data.host_ptr;
+    object_property_set_uint(OBJECT(s->cpu), "rvbar", s->base & ~0xFFF, NULL);
     cpu_reset(cpu);
     DPRINTF("apple_sep_cpu_reset_work: before cpu_set_pc: base=0x%" VADDR_PRIX
             "\n",

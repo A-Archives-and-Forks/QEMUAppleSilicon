@@ -693,9 +693,10 @@ AppleA13State *apple_a13_create(const char *name, uint32_t cpu_id,
     acpu->phys_id = phys_id;
     acpu->cluster_id = cluster_id;
 
-    mpidr = acpu->phys_id | (1LL << 31);
+    mpidr = acpu->phys_id | BIT_ULL(31);
 
     cpu->midr = REG_FIELD_DP64(0, MIDR_EL1, IMPLEMENTER, 0x61); // Apple
+    cpu->midr = REG_FIELD_DP64(cpu->midr, MIDR_EL1, ARCHITECTURE, 0x0f);
     /* chip-revision = (variant << 4) | (revision) */
     cpu->midr = REG_FIELD_DP64(cpu->midr, MIDR_EL1, VARIANT, 0x1);
     cpu->midr = REG_FIELD_DP64(cpu->midr, MIDR_EL1, REVISION, 0x1);
@@ -707,6 +708,10 @@ AppleA13State *apple_a13_create(const char *name, uint32_t cpu_id,
         break;
     case 'E': // Thunder
         cpu->midr = REG_FIELD_DP64(cpu->midr, MIDR_EL1, PARTNUM, 0x13);
+        break;
+    case 'S': // SEP
+        mpidr |= (0xb << ARM_AFF1_SHIFT);
+        cpu->midr = REG_FIELD_DP64(cpu->midr, MIDR_EL1, PARTNUM, 0x15);
         break;
     default:
         break;
