@@ -528,7 +528,7 @@ void apple_boot_populate_dt(AppleDTNode *root, AppleBootInfo *info,
 {
     AppleDTNode *child;
     AppleDTProp *prop;
-    uint8_t *boot_nonce_data;
+    char *boot_nonce_data;
     size_t boot_nonce_len;
     uint8_t *hash = NULL;
     size_t hash_len = 0;
@@ -590,7 +590,8 @@ void apple_boot_populate_dt(AppleDTNode *root, AppleBootInfo *info,
     apple_dt_set_prop_u32(child, "insecure_hpr", 1);
 
     child = apple_dt_get_node(root, "chosen/manifest-properties");
-    if (qcrypto_hash_bytes(QCRYPTO_HASH_ALGO_SHA256, prop->data, prop->len,
+    assert_nonnull(child);
+    if (qcrypto_hash_bytes(QCRYPTO_HASH_ALGO_SHA256, boot_nonce_data, boot_nonce_len,
                            &hash, &hash_len, &error_fatal) >= 0) {
         apple_dt_set_prop(child, "BNCH", hash_len, hash);
         g_free(hash);
@@ -1424,12 +1425,13 @@ vaddr apple_boot_load_macho(MachoHeader64 *header, AddressSpace *as,
                     for (seg = apple_boot_get_first_seg(header2); seg != NULL;
                          seg = apple_boot_get_next_seg(header2, seg)) {
                         MachoSection64 *sp;
-                        seg->vmaddr -= virt_slide;
                         for (sp = apple_boot_first_sect(seg);
                              sp != apple_boot_end_sect(seg);
                              sp = apple_boot_next_sect(sp)) {
                             sp->addr -= virt_slide;
                         }
+                        // probably won't change anything, it's just for the symmetry
+                        seg->vmaddr -= virt_slide;
                     }
                 }
             }

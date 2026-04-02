@@ -325,6 +325,8 @@ static void t8030_load_kernelcache(AppleT8030MachineState *t8030,
     g_virt_base = kc_base + (g_virt_slide - g_phys_slide);
 
     info->trustcache_addr = vtop_slid(ro_lower) - info->trustcache_size;
+    info_report("TrustCache Physical Base: 0x" HWADDR_FMT_plx,
+                info->trustcache_addr);
 
     address_space_rw(&address_space_memory, info->trustcache_addr,
                      MEMTXATTRS_UNSPECIFIED, t8030->trustcache,
@@ -353,14 +355,25 @@ static void t8030_load_kernelcache(AppleT8030MachineState *t8030,
     }
 
     // TZ0
-    info->tz0_addr = phys_ptr;
+    // 256 MiB doesn't seem to work properly with sepos 18.5
+    // SEP's MPIDR influences stack/sp address
     // info->tz0_size = 300 * MiB;
     info->tz0_size = 240 * MiB; // FIXME: workaround for sepos >= 16
+
+    // for booting sepfw 26 without opcode17:
+    // tz0_base must be, at least, aligned to 32 MiB
+    phys_ptr = ROUND_UP(phys_ptr, 32*MiB);
+
+    info->tz0_addr = phys_ptr;
     phys_ptr += info->tz0_size;
+    info_report("TZ0 Physical Base: 0x" HWADDR_FMT_plx, info->tz0_addr);
 
     // SEP Firmware
     info->sep_fw_addr = phys_ptr;
-    info->sep_fw_size = 16 * MiB;
+    // should be equal to make the mapping work
+    info->sep_fw_size = SEPFW_MAPPING_SIZE;
+    info_report("SEPFW Physical Base: 0x" HWADDR_FMT_plx, info->sep_fw_addr);
+    info_report("SEPFW Size: 0x" HWADDR_FMT_plx, info->sep_fw_size);
     phys_ptr += info->sep_fw_size;
 
     if (t8030->sep_fw_filename != NULL) {
@@ -499,7 +512,7 @@ static void t8030_memory_setup(AppleT8030MachineState *t8030)
         address_space_set(&address_space_memory, 0x300000000ULL, 0,
                           0x8000000ULL, MEMTXATTRS_UNSPECIFIED);
         address_space_set(&address_space_memory, 0x340000000ULL, 0,
-                          0x2000000ULL, MEMTXATTRS_UNSPECIFIED);
+                          SEP_DMA_MAPPING_SIZE, MEMTXATTRS_UNSPECIFIED);
         address_space_rw(&address_space_memory, SEPROM_BASE,
                          MEMTXATTRS_UNSPECIFIED, (uint8_t *)seprom, fsize,
                          true);
@@ -2656,7 +2669,7 @@ static void t8030_init(MachineState *machine)
                      0x8000000ULL, 0);
         // 0x1000000 is too low
         allocate_ram(get_system_memory(), "DRAM_34", 0x340000000ULL,
-                     0x2000000ULL, 0);
+                     SEP_DMA_MAPPING_SIZE, 0);
         // SEP_UNKN0 is now MISC0
         allocate_ram(get_system_memory(), "SEP_UNKN1", 0x242200000ULL, 0x24000,
                      0);
@@ -2667,7 +2680,7 @@ static void t8030_init(MachineState *machine)
                      0);
         // SEP_UNKN12 is now MISC1
         // 0x242400000 is apple-a7iop.SEP.regs
-        // sepfw 26.2beta2 says it's (a7iop) size would be 0x64000
+        // sepfw 26.2beta2/26.3.1 says it's (a7iop) size would be 0x64000
         // stack for 0x340005BF4/SEPFW
         allocate_ram(get_system_memory(), "SEP_UNKN13", 0x24020C000ULL, 0x4000,
                      0);
@@ -2676,14 +2689,14 @@ static void t8030_init(MachineState *machine)
                      0);
         allocate_ram(get_system_memory(), "SEP_UNKN15", 0x240A90000ULL, 0x4000,
                      0);
-        // for sepfw 26.2beta2
+        // for sepfw 26.2beta2/26.3.1
         allocate_ram(get_system_memory(), "SEP_UNKN16", 0x242000000ULL,
                      0x400000, 0);
-        allocate_ram(get_system_memory(), "SEP_dram_nubs", 0x23df00000ULL,
+        allocate_ram(get_system_memory(), "SEP_dram_nubs", 0x23DF00000ULL,
                      0x20000, 0);
-        allocate_ram(get_system_memory(), "SEP_dram_nubg", 0x23d000000ULL,
+        allocate_ram(get_system_memory(), "SEP_dram_nubg", 0x23D000000ULL,
                      0x4000, 0);
-        // dram_scr address 0x23d2c0000 size 0x8000 inside pmgr-unk-reg-2
+        // dram_scr address 0x23D2C0000 size 0x8000 inside pmgr-unk-reg-2
         // dram_pln0 address 0x200000000 size 0x8000, inside amcc
     }
 

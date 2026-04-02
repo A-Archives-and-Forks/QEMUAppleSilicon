@@ -484,7 +484,7 @@ SysBusDevice *apple_smc_create(AppleDTNode *node, AppleA7IOPVersion version,
     uint8_t ac_adapter_count = 1;
     int8_t ac_w = 0x1; // should actually be a function
     uint8_t batt_feature_flags = 0x0;
-    uint16_t batt_cycle_count = 0x7;
+    uint16_t batt_cycle_count = 7;
     uint16_t batt_avg_time_to_full = 0xffff; // not charging
     uint16_t batt_max_capacity = 31337;
     uint16_t batt_full_charge_capacity = batt_max_capacity * 0.98;
@@ -493,9 +493,8 @@ SysBusDevice *apple_smc_create(AppleDTNode *node, AppleA7IOPVersion version,
     uint16_t batt_current_capacity = batt_full_charge_capacity * 0.69;
     uint16_t batt_remaining_capacity =
         batt_full_charge_capacity - batt_current_capacity;
-    // b0fv might mean "battery full voltage"
     uint32_t battery_fw_version = 0x201;
-    uint8_t battery_count = 0x1;
+    uint8_t battery_count = 1;
     uint16_t batt_cell_voltage = 4200;
     int16_t batt_actual_amperage = 0x0;
     uint16_t batt_actual_voltage = batt_cell_voltage;
@@ -678,6 +677,7 @@ SysBusDevice *apple_smc_create(AppleDTNode *node, AppleA7IOPVersion version,
     apple_smc_add_key(s, 'CHA1', 4, SMC_KEY_TYPE_UINT32, SMC_ATTR_R_LE, NULL);
     // TODO: BHT0 battery heat map function, length 0x19/25
     // TODO: battery settings page won't fully load
+    // odd bvt0 write, maybe a function?
 
     const uint8_t wireless_charger_chip_id = 1;
     apple_smc_add_key(s, 'WADI', 1, SMC_KEY_TYPE_UINT8, SMC_ATTR_R_LE,

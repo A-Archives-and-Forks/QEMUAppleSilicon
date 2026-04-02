@@ -62,6 +62,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(AppleBasebandState, APPLE_BASEBAND)
 // the sizes are as follows
 // t8030: 0x1000/0x1000/0x2000 (intel)
 // bar2 (zero-based) might be for msi-x
+// t8020 might be 0x1000 (4096)/0x100 (256), both 64-bit
 
 #define APPLE_BASEBAND_DEVICE_BAR0_SIZE (0x1000)
 #define APPLE_BASEBAND_DEVICE_BAR1_SIZE (0x1000)

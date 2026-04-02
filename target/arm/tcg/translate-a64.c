@@ -2620,6 +2620,7 @@ static void handle_sys(DisasContext *s, bool isread,
          */
         TCGv_i64 ptr = tcg_temp_new_i64();
         MemOp mop = MO_64 | MO_ALIGN | MO_ATOM_IFALIGN;
+        // maybe handle "guarded" here?
         ARMMMUIdx armmemidx = s->nv2_mem_e20 ? ARMMMUIdx_E20_2 : ARMMMUIdx_E2;
         int memidx = arm_to_core_mmu_idx(armmemidx);
         uint32_t syn;

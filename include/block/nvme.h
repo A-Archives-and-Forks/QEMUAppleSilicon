@@ -1206,7 +1206,17 @@ typedef struct QEMU_PACKED NvmeIdCtrl {
     uint8_t     subnqn[256];
     uint8_t     rsvd1024[1024];
     NvmePSD     psd[32];
-    uint8_t     rsvd3072[518];
+    uint8_t     rsvd3072_0[0x1c];
+    uint8_t     chip_id;
+    uint8_t     some_id_hex_base_0xa0;
+    uint16_t    id_standard_low;
+    uint8_t     id_standard_high;
+    uint8_t     ftl_rev_major;
+    uint8_t     ftl_rev_minor;
+    uint8_t     dm_version;
+    uint8_t     rsvd3072_1[0xdc];
+    uint64_t    id_advanced;
+    uint8_t     rsvd3072_2[0xfe];
     uint16_t	capacity;
     uint8_t		vs[504];
 } NvmeIdCtrl;

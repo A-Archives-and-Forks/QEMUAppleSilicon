@@ -2201,6 +2201,27 @@ static uint64_t moni_base_reg_read(void *opaque, hwaddr addr, unsigned size)
     cpu_dump_state(CPU(s->cpu), stderr, CPU_DUMP_CODE);
 #endif
     switch (addr) {
+    case 0xa000:
+        // bit0 needed to select non-default region?
+        // bit0 set while opcode17 empty/0x0: uses 0x8... (TZ0). it requires an
+        // aligned address, otherwise seprom will panic.
+        // bit0 unset while opcode17 empty/0x0: uses 0x30... .
+        // only one of the two bit0's set with opcode17 being non-empty is
+        // untested
+        // both bit0 unset with opcode17 non-empty: as before
+        // both bit0 set with opcode17 non-empty: tries to jump to 0x810000000
+        // this bit0 unset, other bit0 set with opcode17 non-empty: fails to
+        // boot to 0x300000000/0x340000000
+        // this bit0 set, other bit0 unset with opcode17 non-empty: boots via
+        // 0x340000000
+        // ret |= BIT(0);
+        break;
+    case 0xa004:
+        // bit0 needed to allow opcode17 missing or 0x0
+        // bit0 set: currently doesn't boot with/without opcode17.
+        // bit0 set probably means "disable integrity tree"
+        // ret |= BIT(0);
+        break;
     default:
         memcpy(&ret, &s->moni_base_regs[addr], size);
         DPRINTF("SEP MONI_BASE: Unknown read at 0x" HWADDR_FMT_plx "\n", addr);
@@ -3603,19 +3624,29 @@ static void boot_monitor_reg_write(void *opaque, hwaddr addr, uint64_t data,
         QEMU_FALLTHROUGH;
     case 0x08: // maybe some command0?
         // 0x2: something about PKA
+        // 0x3: ?
         // 0x4: during resume
         // 0x10: during first/cold boot
+        // 0x11: ?
+        // 0x12: ?
     case 0x10: // maybe some command1?
+    case 0x14: // ?
     case 0x20: // load address low
     case 0x24: // load address high
+        // 0x0000000340000000
     case 0x28: // end address low
     case 0x2C: // end address high
+        // 0x0000000340010000, middle of kernel __text
     case 0x30: // unknown1 address low
     case 0x34: // unknown1 address high
+        // 0x000000034004c000 == base of SEPD
     case 0x38: // unknown2 address low
     case 0x3C: // unknown2 address high
+        // 0x00000003403d0000 == 0xc000 of SEPOS, middle of __text
+        // 0x0000000340464000 == 0x1c000 of SEPOS, middle of __cstring
     case 0x40: // unknown0 address low
     case 0x44: // unknown0 address high
+        // 0x0000000000000000
         goto jump_default;
     case 0x48: // randomness low
     case 0x4C: // randomness high
@@ -3649,10 +3680,11 @@ static uint64_t boot_monitor_reg_read(void *opaque, hwaddr addr, unsigned size)
     cpu_dump_state(CPU(s->cpu), stderr, CPU_DUMP_CODE);
 #endif
     switch (addr) {
-    case 0x04: // some status flag, bit0
+    case 0x04: // some status flag, bit0, maybe "is active"
         goto jump_default;
     case 0x0C: // must return 0x0
         // other possible values: 0x1/0x2/0x3, maybe even 0x4
+        // maybe error codes?
         ret = 0x0;
         return ret;
     default:

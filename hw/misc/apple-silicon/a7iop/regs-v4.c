@@ -79,7 +79,7 @@ static void apple_a7iop_v4_reg_write(void *opaque, hwaddr addr,
     AppleA7IOP *s = opaque;
 
     // qemu_log_mask(LOG_UNIMP,
-    //               "A7IOP(%s): Write to 0x" HWADDR_FMT_plx
+    //               "A7IOP_V4(%s): Write to 0x" HWADDR_FMT_plx
     //               " of value 0x" HWADDR_FMT_plx "\n",
     //               s->role, addr, data);
 
@@ -160,7 +160,7 @@ static void apple_a7iop_v4_reg_write(void *opaque, hwaddr addr,
         break;
     default: {
         qemu_log_mask(LOG_UNIMP,
-                      "A7IOP(%s): Unknown write to 0x" HWADDR_FMT_plx
+                      "A7IOP_V4(%s): Unknown write to 0x" HWADDR_FMT_plx
                       " of value 0x" HWADDR_FMT_plx "\n",
                       s->role, addr, data);
         break;
@@ -229,14 +229,14 @@ static uint64_t apple_a7iop_v4_reg_read(void *opaque, hwaddr addr,
         break;
     default: {
         qemu_log_mask(LOG_UNIMP,
-                      "A7IOP(%s): Unknown read from 0x" HWADDR_FMT_plx "\n",
+                      "A7IOP_V4(%s): Unknown read from 0x" HWADDR_FMT_plx "\n",
                       s->role, addr);
         ret = 0;
         break;
     }
     }
     // qemu_log_mask(LOG_UNIMP,
-    //               "A7IOP(%s): Read from 0x" HWADDR_FMT_plx
+    //               "A7IOP_V4(%s): Read from 0x" HWADDR_FMT_plx
     //               " of value 0x" HWADDR_FMT_plx "\n",
     //               s->role, addr, ret);
     return ret;

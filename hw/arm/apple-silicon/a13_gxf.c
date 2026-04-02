@@ -145,6 +145,7 @@ static void far_el1_write(CPUARMState *env, const ARMCPRegInfo *ri,
 static void sprr_perm_el0_write(CPUARMState *env, const ARMCPRegInfo *ri,
                                 uint64_t value)
 {
+    // maybe use uint64_t for mask/umask?
     uint64_t perm = raw_read(env, ri);
     uint32_t mask = env->sprr.mprr_el_br_el1[0][0];
     if (arm_current_el(env)) {
@@ -166,6 +167,8 @@ static void sprr_perm_el0_write(CPUARMState *env, const ARMCPRegInfo *ri,
         perm &= ~(APRR_ATTR_MASK << APRR_SHIFT_FOR_IDX(i));
         perm |= result_perm << APRR_SHIFT_FOR_IDX(i);
     }
+    // what's about bit36?
+    // Visual also accidentally found it on his own "TPRO regions should not be writable on entry to dyld"
 
     raw_write(env, ri, perm);
 
@@ -234,6 +237,7 @@ static const ARMCPRegInfo apple_a13_gxf_cp_override_reginfo[] = {
         .fieldoffset = offsetof(CPUARMState, banked_spsr[BANK_SVC]),
         .readfn = spsr_el1_read,
         .writefn = spsr_el1_write,
+        .resetvalue = 0,
     },
     {
         .name = "ELR_EL1",
@@ -250,6 +254,7 @@ static const ARMCPRegInfo apple_a13_gxf_cp_override_reginfo[] = {
         .fieldoffset = offsetof(CPUARMState, elr_el[1]),
         .readfn = elr_el1_read,
         .writefn = elr_el1_write,
+        .resetvalue = 0,
     },
     {
         .name = "ESR_EL1",
@@ -371,6 +376,7 @@ static const ARMCPRegInfo apple_a13_gxf_cp_reginfo[] = {
         .raw_writefn = gxf_cpreg_raw_write,
         .bank_fieldoffsets = { offsetof(CPUARMState, gxf.sp_gl[1]),
                                offsetof(CPUARMState, sp_el[1]) },
+        .resetvalue = 0,
     },
     {
         .name = "TPIDR_GL11",
@@ -387,6 +393,7 @@ static const ARMCPRegInfo apple_a13_gxf_cp_reginfo[] = {
         .raw_writefn = gxf_cpreg_raw_write,
         .bank_fieldoffsets = { offsetof(CPUARMState, gxf.tpidr_gl[1]),
                                offsetof(CPUARMState, cp15.tpidr_el[1]) },
+        .resetvalue = 0,
     },
     {
         .name = "VBAR_GL11",
@@ -403,6 +410,7 @@ static const ARMCPRegInfo apple_a13_gxf_cp_reginfo[] = {
         .raw_writefn = gxf_cpreg_raw_write,
         .bank_fieldoffsets = { offsetof(CPUARMState, gxf.vbar_gl[1]),
                                offsetof(CPUARMState, cp15.vbar_el[1]) },
+        .resetvalue = 0,
     },
     {
         .name = "SPSR_GL11",
@@ -419,6 +427,7 @@ static const ARMCPRegInfo apple_a13_gxf_cp_reginfo[] = {
         .raw_writefn = gxf_cpreg_raw_write,
         .bank_fieldoffsets = { offsetof(CPUARMState, gxf.spsr_gl[1]),
                                offsetof(CPUARMState, banked_spsr[BANK_SVC]) },
+        .resetvalue = 0,
     },
     {
         .name = "ESR_GL11",
@@ -435,6 +444,7 @@ static const ARMCPRegInfo apple_a13_gxf_cp_reginfo[] = {
         .raw_writefn = gxf_cpreg_raw_write,
         .bank_fieldoffsets = { offsetof(CPUARMState, gxf.esr_gl[1]),
                                offsetof(CPUARMState, cp15.esr_el[1]) },
+        .resetvalue = 0,
     },
     {
         .name = "ELR_GL11",
@@ -451,6 +461,7 @@ static const ARMCPRegInfo apple_a13_gxf_cp_reginfo[] = {
         .raw_writefn = gxf_cpreg_raw_write,
         .bank_fieldoffsets = { offsetof(CPUARMState, gxf.elr_gl[1]),
                                offsetof(CPUARMState, elr_el[1]) },
+        .resetvalue = 0,
     },
     {
         .name = "FAR_GL11",
@@ -467,6 +478,7 @@ static const ARMCPRegInfo apple_a13_gxf_cp_reginfo[] = {
         .raw_writefn = gxf_cpreg_raw_write,
         .bank_fieldoffsets = { offsetof(CPUARMState, gxf.far_gl[1]),
                                offsetof(CPUARMState, cp15.far_el[1]) },
+        .resetvalue = 0,
     },
     // TODO: Implement lockdown for these registers to prevent unexpected
     // changes
@@ -513,6 +525,8 @@ static const ARMCPRegInfo apple_a13_gxf_cp_reginfo[] = {
         .resetvalue = 0,
         .readfn = raw_read,
         .writefn = sprr_perm_el0_write,
+        // is that actually not needed?
+        // .raw_readfn = raw_read,
         .raw_writefn = raw_write,
         .fieldoffset = offsetof(CPUARMState, sprr.sprr_el_br_el1[0][0]),
     },

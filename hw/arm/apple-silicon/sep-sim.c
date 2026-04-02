@@ -123,6 +123,7 @@ enum {
     CONTROL_OP_NOTIFY_ALIVE = 13,
     CONTROL_OP_SEED_DPA = 15,
     CONTROL_OP_GENERATE_RANDOM_DATA = 16,
+    CONTROL_OP_OPCODE_18 = 18,
     CONTROL_OP_NAP = 19,
     CONTROL_OP_GET_SECURITY_MODE = 20,
     CONTROL_OP_SELF_TEST = 24,
@@ -235,7 +236,8 @@ enum {
     BOOTSTRAP_OP_GET_STATUS = 2,
     BOOTSTRAP_OP_GENERATE_NONCE = 3,
     BOOTSTRAP_OP_GET_NONCE_WORD = 4,
-    BOOTSTRAP_OP_CHECK_TZ0 = 5,
+    // should rather be the original CHECK_TZ0, but tell that to Apple.
+    BOOTSTRAP_OP_BOOT_TZ0 = 5,
     BOOTSTRAP_OP_BOOT_IMG4 = 6,
     BOOTSTRAP_OP_LOAD_SEP_ART = 7,
     BOOTSTRAP_OP_OPCODE_9 = 9,
@@ -245,6 +247,13 @@ enum {
     BOOTSTRAP_OP_OPCODE_16 = 16,
     BOOTSTRAP_OP_INTEGRITY_TREE_SIZE = 17,
     BOOTSTRAP_OP_NOTIFY_OS_ACTIVE = 21,
+    // 30/31: iOS 26, AppleSEPBooter::_captureiBICKCV
+    BOOTSTRAP_OP_OPCODE_30 = 30,
+    BOOTSTRAP_OP_OPCODE_31 = 31,
+    // 35: iOS 26, if sepfw has ar1s tag
+    BOOTSTRAP_OP_OPCODE_35 = 35,
+    BOOTSTRAP_OP_BOOT_TMM_MANIFEST = 36,
+    BOOTSTRAP_OP_BOOT_PATCH = 37,
 
     BOOTSTRAP_OP_PING_ACK = 101,
     BOOTSTRAP_OP_STATUS_REPLY = 102,
@@ -573,8 +582,8 @@ static void apple_sep_sim_handle_bootstrap_msg(AppleSEPSimState *s,
                                    BOOTSTRAP_OP_NONCE_WORD_REPLY, msg->param,
                                    randval);
         break;
-    case BOOTSTRAP_OP_CHECK_TZ0:
-        qemu_log_mask(LOG_GUEST_ERROR, "EP_BOOTSTRAP: CHECK_TZ0\n");
+    case BOOTSTRAP_OP_BOOT_TZ0:
+        qemu_log_mask(LOG_GUEST_ERROR, "EP_BOOTSTRAP: BOOT_TZ0\n");
 
         s->rsep = msg->param == 1;
         qemu_log_mask(LOG_GUEST_ERROR,

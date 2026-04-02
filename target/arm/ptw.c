@@ -1357,10 +1357,13 @@ static bool get_phys_addr_v6(CPUARMState *env, S1Translate *ptw,
             prot_rw = ap_to_rw_prot(env, mmu_idx, ap, domain_prot);
             user_rw = ap_to_rw_prot_is_user(env, mmu_idx, ap, domain_prot, 1);
         }
+#if 0
+        // does 32-bit AP have that functionality?
         if (arm_is_sprr_enabled(env)) {
             prot_rw = pte_to_sprr_prot(env, ap, xn, pxn) & (PAGE_READ | PAGE_WRITE);
             pxn = !(pte_to_sprr_prot(env, ap, xn, pxn) & PAGE_EXEC);
         }
+#endif
 
         result->f.prot = get_S1prot(env, mmu_idx, false, user_rw, prot_rw,
                                     xn, pxn, result->f.attrs.space, out_space);

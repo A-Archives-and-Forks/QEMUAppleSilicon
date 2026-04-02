@@ -275,7 +275,7 @@ struct AppleSSCState {
 #define KEY_FCFG_REG_SIZE_T8015 (0x10000) // T8015
 #define KEY_FCFG_REG_SIZE_T8020 (0x18000) // T8020
 // #define KEY_FCFG_REG_SIZE_T8030 (0x14000) // T8030 ; sepfw module
-#define KEY_FCFG_REG_SIZE_T8030 (0x40000) // T8030 26.2beta2 ; sepfw kernel
+#define KEY_FCFG_REG_SIZE_T8030 (0x40000) // T8030 e.g. 26.2beta2 ; sepfw kernel
 #define MONI_BASE_REG_SIZE (0x40000)
 #define MONI_THRM_REG_SIZE (0x10000)
 #define EISP_BASE_REG_SIZE (0x240000)

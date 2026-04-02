@@ -467,6 +467,7 @@ static inline const char *nvme_adm_opc_str(uint8_t opc)
     case NVME_ADM_CMD_MAYBE_BFH_OFW:    return "NVME_ADM_CMD_MAYBE_BFH_OFW";
     case NVME_ADM_CMD_DOWNLOAD_FW:      return "NVME_ADM_CMD_DOWNLOAD_FW";
     case NVME_ADM_CMD_ACTIVATE_FW:      return "NVME_ADM_CMD_ACTIVATE_FW";
+    case NVME_ADM_CMD_CREATE_NS:        return "NVME_ADM_CMD_CREATE_NS";
     default:                            return "NVME_ADM_CMD_UNKNOWN";
     }
 }
