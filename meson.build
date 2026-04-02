@@ -2674,7 +2674,7 @@ if has_madvise
   # missing-prototype case, we try again with a definitely-bogus prototype.
   # This will only compile if the system headers don't provide the prototype;
   # otherwise the conflicting prototypes will cause a compiler error.
-  missing_madvise_proto = cc.links(osdep_prefix + '''>
+  missing_madvise_proto = cc.links(osdep_prefix + '''
     #include <sys/mman.h>
     extern int madvise(int);
     int main(void) { return madvise(0); }''')
@@ -2739,7 +2739,7 @@ config_host_data.set('CONFIG_PTHREAD_CONDATTR_SETCLOCK', cc.links(osdep_prefix +
 
   int main(void)
   {
-    pthread_condattr_t attr
+    pthread_condattr_t attr;
     pthread_condattr_init(&attr);
     pthread_condattr_setclock(&attr, CLOCK_MONOTONIC);
     return 0;
