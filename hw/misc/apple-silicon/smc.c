@@ -142,7 +142,7 @@ void apple_smc_add_key(AppleSMCState *s, uint32_t key, uint8_t size,
     SMCKey *key_entry;
     SMCKeyData *data_entry;
 
-    assert_false(attr & SMC_ATTR_FUNC);
+    assert_true((attr & SMC_ATTR_FUNC) == 0);
 
     key_entry = apple_smc_new_key(key, size, type, attr, data, &data_entry);
 
@@ -156,7 +156,7 @@ void apple_smc_add_sensor(AppleSMCState *s, uint32_t key, uint8_t size,
     SMCKey *key_entry;
     SMCKeyData *data_entry;
 
-    assert_false(attr & SMC_ATTR_FUNC);
+    assert_true((attr & SMC_ATTR_FUNC) == 0);
 
     key_entry = apple_smc_new_key(key, size, type, attr, data, &data_entry);
     key_entry->is_sensor = true;
@@ -171,7 +171,7 @@ void apple_smc_add_key_func(AppleSMCState *s, uint32_t key, uint8_t size,
     SMCKey *key_entry;
     SMCKeyData *data_entry;
 
-    assert_false(attr & (SMC_ATTR_FUNC | SMC_ATTR_RW));
+    assert_true((attr & (SMC_ATTR_FUNC | SMC_ATTR_RW)) == 0);
 
     attr |= SMC_ATTR_FUNC;
     if (reader != NULL) {
