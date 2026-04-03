@@ -38,6 +38,7 @@
 #include "hw/block/apple-silicon/ans.h"
 #include "hw/char/apple_uart.h"
 #include "hw/display/apple_displaypipe_v4.h"
+#include "hw/display/apple_scaler.h"
 #include "hw/display/synopsys_mipi_dsim.h"
 #include "hw/dma/apple_sio.h"
 #include "hw/gpio/apple_gpio.h"
@@ -2121,6 +2122,48 @@ static void t8030_create_display(AppleT8030MachineState *t8030)
     sysbus_realize_and_unref(sbd, &error_fatal);
 }
 
+static void t8030_create_scaler(AppleT8030MachineState *t8030)
+{
+    SysBusDevice *sbd;
+    AppleDTNode *child;
+    uint64_t *reg;
+    AppleDTProp *prop;
+
+    AppleDARTState *dart = APPLE_DART(
+        object_property_get_link(OBJECT(t8030), "dart-scaler", &error_fatal));
+    g_assert_nonnull(dart);
+    child = apple_dt_get_node(t8030->device_tree,
+                              "arm-io/dart-scaler/mapper-scaler");
+    g_assert_nonnull(child);
+    prop = apple_dt_get_prop(child, "reg");
+    g_assert_nonnull(prop);
+
+    child = apple_dt_get_node(t8030->device_tree, "arm-io/scaler0");
+
+    sbd = apple_scaler_create(
+        child, MEMORY_REGION(apple_dart_iommu_mr(dart, ldl_le_p(prop->data))));
+
+    prop = apple_dt_get_prop(child, "reg");
+    g_assert_nonnull(prop);
+    reg = (uint64_t *)prop->data;
+
+    sysbus_mmio_map(sbd, 0, t8030->armio_base + reg[0]);
+    sysbus_mmio_map(sbd, 1, t8030->armio_base + reg[2]);
+
+    prop = apple_dt_get_prop(child, "interrupts");
+    g_assert_nonnull(prop);
+    uint32_t *ints = (uint32_t *)prop->data;
+
+    for (size_t i = 0; i < prop->len / sizeof(uint32_t); i++) {
+        sysbus_connect_irq(sbd, i,
+                           qdev_get_gpio_in(DEVICE(t8030->aic), ints[i]));
+    }
+
+    object_property_add_child(OBJECT(t8030), "scaler0", OBJECT(sbd));
+
+    sysbus_realize_and_unref(sbd, &error_fatal);
+}
+
 static void t8030_create_sep(AppleT8030MachineState *t8030)
 {
     AppleDTNode *armio;
@@ -2853,6 +2896,7 @@ static void t8030_init(MachineState *machine)
     t8030_create_dart(t8030, "dart-apcie3", true);
     t8030_create_dart(t8030, "dart-aop", false);
     t8030_create_dart(t8030, "dart-rsm", false);
+    t8030_create_dart(t8030, "dart-scaler", false);
     t8030_create_pcie(t8030);
     t8030_create_ans(t8030);
     t8030_create_usb(t8030);
@@ -2896,6 +2940,7 @@ static void t8030_init(MachineState *machine)
     t8030_create_speaker_bottom(t8030);
     t8030_create_buttons(t8030);
     t8030_create_mipi_dsim(t8030);
+    t8030_create_scaler(t8030);
 
     t8030_create_tempsensor(t8030, "tempsensor0", false);
     t8030_create_tempsensor(t8030, "tempsensor1", false);
