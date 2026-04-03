@@ -593,13 +593,6 @@ struct TypeInfo
     : ((class_type *)OBJECT_CLASS(class))
 #endif
 
-#ifdef CONFIG_QOM_CAST_DEBUG
-#define DO_OBJECT_INTERFACE_INFO(MODULE_OBJ_NAME, is)
-#else
-#define DO_OBJECT_INTERFACE_INFO(MODULE_OBJ_NAME, is) \
-    static inline G_GNUC_UNUSED bool MODULE_OBJ_NAME##_IS_INTERFACE(void) { return is; }
-#endif
-
 /**
  * DECLARE_CLASS_CHECKERS:
  * @ClassType: class struct name
@@ -693,6 +686,34 @@ struct InterfaceClass
 };
 
 #define TYPE_INTERFACE "interface"
+
+#ifdef CONFIG_QOM_CAST_DEBUG
+#define DO_OBJECT_INTERFACE_INFO(MODULE_OBJ_NAME, is)
+#else
+#define DO_OBJECT_INTERFACE_INFO(MODULE_OBJ_NAME, is) \
+    static inline G_GNUC_UNUSED bool MODULE_OBJ_NAME##_IS_INTERFACE(void) { return is; }
+#endif
+
+/**
+ * INTERFACE_CLASS:
+ * @klass: class to cast from
+ * Returns: An #InterfaceClass or raise an error if cast is invalid
+ */
+#define INTERFACE_CLASS(klass) \
+    OBJECT_CLASS_CHECK(InterfaceClass, klass, TYPE_INTERFACE, TYPE_INTERFACE)
+DO_OBJECT_INTERFACE_INFO(TYPE_INTERFACE, true);
+
+/**
+ * INTERFACE_CHECK:
+ * @interface: the type to return
+ * @obj: the object to convert to an interface
+ * @name: the interface type name
+ *
+ * Returns: @obj casted to @interface if cast is valid, otherwise raise error.
+ */
+#define INTERFACE_CHECK(interface, obj, name) \
+    ((interface *)object_dynamic_cast_assert(OBJECT((obj)), (name), \
+                                             __FILE__, __LINE__, __func__))
 
 /**
  * object_new_with_class:
