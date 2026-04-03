@@ -727,6 +727,7 @@ static void nvme_ns_realize(DeviceState *dev, Error **errp)
     NvmeSubsystem *subsys = n->subsys;
     uint32_t nsid = ns->params.nsid;
     int i;
+    NvmeIdCtrl *id = &n->id_ctrl;
 
     assert(subsys);
 
@@ -767,6 +768,42 @@ static void nvme_ns_realize(DeviceState *dev, Error **errp)
 
     if (!ns->params.shared) {
         ns->ctrl = n;
+    }
+
+    if (n->params.is_apple_ans && ns->id_ns.nstype == 1) {
+        if (ns->size < 1 * GiB) {
+            error_setg(errp, "ANS Root Namespace is empty or under 1GiB (check "
+                             "your disk parameters)");
+            return;
+        }
+
+        int vendor_index = 0x3;
+        int is_3d = 1; // must be 0 or 1
+        int lithography_index = 0x2;
+        int density_index = 0x2;
+        int ecc_version = 0x1;
+        int plane = 0x2;
+        // int chip_die_index = 0x; // only used when vendor_index == 1 && density_index == 1, has weird encoding in id_standard_high
+
+        id->capacity = ns->size / GiB;
+        id->chip_id = 0x0;
+        id->id_advanced = deposit64(0, 0, 5, vendor_index);
+        id->id_advanced = deposit64(id->id_advanced, 5, 8, lithography_index);
+        id->id_advanced = deposit64(id->id_advanced, 13, 4, density_index);
+        id->id_advanced = deposit64(id->id_advanced, 17, 4, is_3d);
+        id->id_advanced = deposit64(id->id_advanced, 21, 5, plane);
+        id->id_advanced = deposit64(id->id_advanced, 30, 6, ecc_version);
+        id->id_standard_low = deposit32(0, 0, 3, vendor_index);
+        id->id_standard_low = deposit32(id->id_standard_low, 3, 4, lithography_index);
+        id->id_standard_low = deposit32(id->id_standard_low, 7, 2, density_index);
+        id->id_standard_low = deposit32(id->id_standard_low, 9, 3, is_3d);
+        id->id_standard_low = deposit32(id->id_standard_low, 12, 2, plane);
+        id->id_standard_high = deposit32(0, 0, 1, ecc_version);
+
+        id->some_id_hex_base_0xa0 = 0x10; // B0
+        id->ftl_rev_major = 23;
+        id->ftl_rev_minor = 1;
+        id->dm_version = 101;
     }
 }
 
