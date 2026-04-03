@@ -777,30 +777,33 @@ static void nvme_ns_realize(DeviceState *dev, Error **errp)
             return;
         }
 
-        int vendor_index = 0x3;
-        int is_3d = 1; // must be 0 or 1
-        int lithography_index = 0x2;
-        int density_index = 0x2;
-        int ecc_version = 0x1;
-        int plane = 0x2;
+        // 1=Hynix,3=Sandisk,4=Samsung,5=Toshiba
+        int id_vendor = 0x3;
+        int id_dimension = 1; // 0==2D,1==3D
+        // 3D: 0=3d-g1,1=3d-g2,2=3d-g3,4=BiCS 4
+        // 2d: 0=1x,1=1y,2=1z
+        int id_lithography = 0x2;
+        int id_density = 0x2;
+        int id_ecc_version = 0x1;
+        int id_plane = 0x2; // 2 << (id_plane - 1) == plane count
         // int chip_die_index = 0x; // only used when vendor_index == 1 && density_index == 1, has weird encoding in id_standard_high
 
         id->capacity = ns->size / GiB;
-        id->chip_id = 0x0;
-        id->id_advanced = deposit64(0, 0, 5, vendor_index);
-        id->id_advanced = deposit64(id->id_advanced, 5, 8, lithography_index);
-        id->id_advanced = deposit64(id->id_advanced, 13, 4, density_index);
-        id->id_advanced = deposit64(id->id_advanced, 17, 4, is_3d);
-        id->id_advanced = deposit64(id->id_advanced, 21, 5, plane);
-        id->id_advanced = deposit64(id->id_advanced, 30, 6, ecc_version);
-        id->id_standard_low = deposit32(0, 0, 3, vendor_index);
-        id->id_standard_low = deposit32(id->id_standard_low, 3, 4, lithography_index);
-        id->id_standard_low = deposit32(id->id_standard_low, 7, 2, density_index);
-        id->id_standard_low = deposit32(id->id_standard_low, 9, 3, is_3d);
-        id->id_standard_low = deposit32(id->id_standard_low, 12, 2, plane);
-        id->id_standard_high = deposit32(0, 0, 1, ecc_version);
+        id->chip_id = 0x0; // 0=S3E,1=S1X,2=S4E,3=S5E
+        id->id_advanced = deposit64(0, 0, 5, id_vendor);
+        id->id_advanced = deposit64(id->id_advanced, 5, 8, id_lithography);
+        id->id_advanced = deposit64(id->id_advanced, 13, 4, id_density);
+        id->id_advanced = deposit64(id->id_advanced, 17, 4, id_dimension);
+        id->id_advanced = deposit64(id->id_advanced, 21, 5, id_plane);
+        id->id_advanced = deposit64(id->id_advanced, 30, 6, id_ecc_version);
+        id->id_standard_low = deposit32(0, 0, 3, id_vendor);
+        id->id_standard_low = deposit32(id->id_standard_low, 3, 4, id_lithography);
+        id->id_standard_low = deposit32(id->id_standard_low, 7, 2, id_density);
+        id->id_standard_low = deposit32(id->id_standard_low, 9, 3, id_dimension);
+        id->id_standard_low = deposit32(id->id_standard_low, 12, 2, id_plane);
+        id->id_standard_high = deposit32(0, 0, 1, id_ecc_version);
 
-        id->some_id_hex_base_0xa0 = 0x10; // B0
+        id->chip_revision = 0x10; // B0
         id->ftl_rev_major = 23;
         id->ftl_rev_minor = 1;
         id->dm_version = 101;
