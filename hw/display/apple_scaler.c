@@ -21,7 +21,9 @@
 #include "hw/display/apple_scaler.h"
 #include "hw/irq.h"
 #include "hw/registerfields.h"
+#include "hw/resettable.h"
 #include "qemu/lockable.h"
+#include "qemu/thread.h"
 #include "system/dma.h"
 
 #ifdef CONFIG_PIXMAN
@@ -154,27 +156,6 @@ typedef struct AppleScalerState {
     bool running;
 } AppleScalerState;
 
-static void apple_scaler_update_irqs(AppleScalerState *scaler)
-{
-    qemu_set_irq(scaler->irqs[0], scaler->irq_sts != 0);
-}
-
-static void apple_scaler_reset_locked(AppleScalerState *scaler)
-{
-    qemu_bh_cancel(scaler->bh);
-
-    memset(scaler->config, 0, sizeof(scaler->config));
-    memset(scaler->base, 0, sizeof(scaler->base));
-    memset(scaler->stride, 0, sizeof(scaler->stride));
-    memset(scaler->swizzle, 0, sizeof(scaler->swizzle));
-    memset(scaler->size, 0, sizeof(scaler->size));
-    scaler->frame_count = 0;
-    scaler->irq_sts = 0;
-    scaler->running = false;
-
-    apple_scaler_update_irqs(scaler);
-}
-
 typedef enum {
     APPLE_SCALER_FORMAT_BGRA = 0,
     APPLE_SCALER_FORMAT_RGBA,
@@ -251,6 +232,11 @@ static void apple_scaler_export_file(bool src, uint32_t width, uint32_t height,
     g_file_set_contents(fn, contents, size, NULL);
 }
 #endif
+
+static void apple_scaler_update_irqs(AppleScalerState *scaler)
+{
+    qemu_set_irq(scaler->irqs[0], scaler->irq_sts != 0);
+}
 
 static void apple_scaler_signal_frame_done(AppleScalerState *scaler)
 {
@@ -360,11 +346,13 @@ static void apple_scaler_reg_write(void *opaque, hwaddr addr, uint64_t data,
     switch (addr >> 2) {
     case R_GLBL_IRQSTS:
         scaler->irq_sts &= ~(uint32_t)data;
+        qemu_mutex_lock(&scaler->lock);
         apple_scaler_update_irqs(scaler);
+        qemu_mutex_unlock(&scaler->lock);
         return;
     case R_GLBL_CTRL:
         if (REG_FIELD_EX32(data, GLBL_CTRL, RESET)) {
-            apple_scaler_reset_locked(scaler);
+            resettable_reset(OBJECT(scaler), RESET_TYPE_COLD);
         }
         return;
     case R_SRC_CFG:
@@ -474,7 +462,7 @@ static void apple_scaler_unk_reg_write(void *opaque, hwaddr addr, uint64_t data,
 
     // QEMU_LOCK_GUARD(&scaler->lock);
 
-    SCALER_INFO("0x" HWADDR_FMT_plx " <- 0x" HWADDR_FMT_plx, addr, data);
+    // SCALER_INFO("0x" HWADDR_FMT_plx " <- 0x" HWADDR_FMT_plx, addr, data);
 
     switch (addr) {
     default: {
@@ -497,7 +485,7 @@ static uint64_t apple_scaler_unk_reg_read(void *opaque, hwaddr addr,
         break;
     }
 
-    SCALER_INFO("0x" HWADDR_FMT_plx " -> 0x" HWADDR_FMT_plx, addr, ret);
+    // SCALER_INFO("0x" HWADDR_FMT_plx " -> 0x" HWADDR_FMT_plx, addr, ret);
 
     return ret;
 }
@@ -513,20 +501,40 @@ static const MemoryRegionOps apple_scaler_unk_reg_ops = {
     .valid.unaligned = false,
 };
 
+static void apple_scaler_reset_enter(Object *obj, ResetType type)
+{
+    AppleScalerState *scaler = APPLE_SCALER(obj);
+
+    qemu_mutex_lock(&scaler->lock);
+    if (scaler->bh) {
+        qemu_bh_cancel(scaler->bh);
+    }
+
+    memset(scaler->config, 0, sizeof(scaler->config));
+    memset(scaler->base, 0, sizeof(scaler->base));
+    memset(scaler->stride, 0, sizeof(scaler->stride));
+    memset(scaler->swizzle, 0, sizeof(scaler->swizzle));
+    memset(scaler->size, 0, sizeof(scaler->size));
+    scaler->frame_count = 0;
+    scaler->irq_sts = 0;
+    scaler->running = false;
+    qemu_mutex_unlock(&scaler->lock);
+}
+
 static void apple_scaler_reset_hold(Object *obj, ResetType type)
 {
     AppleScalerState *scaler = APPLE_SCALER(obj);
 
-    QEMU_LOCK_GUARD(&scaler->lock);
-
-    apple_scaler_reset_locked(scaler);
+    qemu_mutex_lock(&scaler->lock);
+    apple_scaler_update_irqs(scaler);
+    qemu_mutex_unlock(&scaler->lock);
 }
 
 static void apple_scaler_realize(DeviceState *dev, Error **errp)
 {
-    AppleScalerState *scaler = APPLE_SCALER(dev);
-
-    QEMU_LOCK_GUARD(&scaler->lock);
+    // AppleScalerState *scaler = APPLE_SCALER(dev);
+    //
+    // QEMU_LOCK_GUARD(&scaler->lock);
 }
 
 static void apple_scaler_class_init(ObjectClass *klass, const void *data)
@@ -534,6 +542,7 @@ static void apple_scaler_class_init(ObjectClass *klass, const void *data)
     ResettableClass *rc = RESETTABLE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
+    rc->phases.enter = apple_scaler_reset_enter;
     rc->phases.hold = apple_scaler_reset_hold;
 
     dc->realize = apple_scaler_realize;
@@ -574,7 +583,6 @@ SysBusDevice *apple_scaler_create(AppleDTNode *node, MemoryRegion *dma_mr)
     qemu_mutex_init(&scaler->lock);
 
     scaler->dma_mr = dma_mr;
-    assert_nonnull(scaler->dma_mr);
     object_property_add_const_link(OBJECT(scaler), "dma_mr",
                                    OBJECT(scaler->dma_mr));
     address_space_init(&scaler->dma_as, scaler->dma_mr, "scaler0.dma");
