@@ -171,21 +171,17 @@ static void apple_sio_dma_destroy_buffer(AppleSIODMAEndpoint *ep,
                                          SIODMABuffer *buf)
 {
     int i;
-    uint32_t unmap_length;
+    uint64_t completed;
     uint64_t access_len;
 
     if (buf->mapped) {
-        unmap_length = buf->completed;
+        completed = buf->completed;
         for (i = 0; i < buf->iov.niov; ++i) {
-            access_len = buf->iov.iov[i].iov_len;
-            if (access_len > unmap_length) {
-                access_len = unmap_length;
-            }
-
+            access_len = MIN(completed, buf->iov.iov[i].iov_len);
             dma_memory_unmap(buf->sgl.as, buf->iov.iov[i].iov_base,
                              buf->iov.iov[i].iov_len, ep->direction,
                              access_len);
-            unmap_length -= access_len;
+            completed -= access_len;
         }
     }
 
