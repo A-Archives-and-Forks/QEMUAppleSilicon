@@ -488,6 +488,8 @@ static void apple_sio_dma(AppleSIOState *s, AppleSIODMAEndpoint *ep,
         reply.op = OP_ACK;
         apple_rtkit_send_user_msg(rtk, EP_CONTROL, reply.raw);
         apple_sio_dma_stop(ep);
+        reply.op = OP_COMPLETE;
+        apple_rtkit_send_user_msg(rtk, EP_CONTROL, reply.raw);
         return;
     default:
         qemu_log_mask(LOG_UNIMP, "%s: Unknown SIO op: %d\n", __func__, m.op);
