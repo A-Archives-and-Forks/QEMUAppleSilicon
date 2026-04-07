@@ -327,12 +327,10 @@ uint64_t apple_sio_dma_write(AppleSIODMAEndpoint *ep, void *buffer,
     return actual_len;
 }
 
-uint64_t apple_sio_dma_remaining(AppleSIODMAEndpoint *ep)
+static uint64_t apple_sio_dma_remaining_locked(AppleSIODMAEndpoint *ep)
 {
     uint64_t len;
     SIODMABuffer *buf;
-
-    QEMU_LOCK_GUARD(&ep->mutex);
 
     len = 0;
 
@@ -342,6 +340,13 @@ uint64_t apple_sio_dma_remaining(AppleSIODMAEndpoint *ep)
     }
 
     return len;
+}
+
+uint64_t apple_sio_dma_remaining(AppleSIODMAEndpoint *ep)
+{
+    QEMU_LOCK_GUARD(&ep->mutex);
+
+    return apple_sio_dma_remaining_locked(ep);
 }
 
 static void apple_sio_control_get_param(AppleSIOState *s, SIOMessage *reply,
@@ -405,7 +410,6 @@ static void apple_sio_dma(AppleSIOState *s, AppleSIODMAEndpoint *ep,
     uint32_t segment_count;
     size_t i;
     SIODMABuffer *buf;
-    uint64_t completed;
 
     QEMU_LOCK_GUARD(&ep->mutex);
 
@@ -473,12 +477,8 @@ static void apple_sio_dma(AppleSIOState *s, AppleSIODMAEndpoint *ep,
             break;
         }
 
-        completed = 0;
-        QTAILQ_FOREACH (buf, &ep->buffers, next) {
-            completed += buf->completed;
-        }
         reply.op = OP_QUERY_OK;
-        reply.data = completed;
+        reply.data = apple_sio_dma_remaining_locked(ep);
         break;
     case OP_STOP:
         reply.op = OP_ACK;
