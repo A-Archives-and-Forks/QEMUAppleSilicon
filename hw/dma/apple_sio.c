@@ -218,7 +218,10 @@ static void apple_sio_dma_writeback(AppleSIOState *s, AppleSIODMAEndpoint *ep,
     m.tag = buf->tag;
     m.data = buf->completed;
 
-    resp_addr = buf->tag * ep->id * 0x10;
+    // -- internal references --
+    // Firestorm$Inferno/18A5351d/sio.bndb@00002b0c
+    // -- end internal references --
+    resp_addr = ((buf->tag - 1) + (ep->id * 0x20)) * 0x10;
     stq_le_dma(&s->dma_as, s->resp_base + resp_addr, buf->start_timestamp,
                MEMTXATTRS_UNSPECIFIED);
     stq_le_dma(&s->dma_as, s->resp_base + resp_addr + 8, end_timestamp,
