@@ -363,7 +363,7 @@ static void t8030_load_kernelcache(AppleT8030MachineState *t8030,
 
     // for booting sepfw 26 without opcode17:
     // tz0_base must be, at least, aligned to 32 MiB
-    phys_ptr = ROUND_UP(phys_ptr, 32*MiB);
+    phys_ptr = ROUND_UP(phys_ptr, 32 * MiB);
 
     info->tz0_addr = phys_ptr;
     phys_ptr += info->tz0_size;
