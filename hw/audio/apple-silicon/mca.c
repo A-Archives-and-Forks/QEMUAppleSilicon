@@ -377,21 +377,28 @@ static void apple_mca_out_callback(void *opaque, int avail)
 {
     AppleMCAState *s = opaque;
 
-    if ((s->sio_clusters[5].txb_control & SIO_UNIT_CTL_ENABLE) == 0 ||
-        s->dma_clusters[11].config == 0) {
+    // if ((s->sio_clusters[5].txb_control & SIO_UNIT_CTL_ENABLE) == 0 ||
+    //     s->dma_clusters[11].config == 0) {
+    //     return;
+    // }
+
+    // const uint32_t bytes_per_sec = 44100 * 2 * 2;
+    // const size_t max_chunk_ms = 15;
+    // const size_t max_chunk = (bytes_per_sec * max_chunk_ms) / 1000;
+
+    size_t buf_size =
+        ROUND_DOWN(MIN(avail, MIN(apple_sio_dma_remaining(s->tx_ep),
+                                  apple_sio_dma_remaining(s->rx_ep))),
+                   2 * 2);
+    if (buf_size == 0) {
         return;
     }
 
-    uint8_t buf[avail];
-
-    avail = apple_sio_dma_read(s->tx_ep, buf, avail);
-    if (avail == 0) {
-        return;
-    }
-
-    AUD_write(s->voice, buf, avail);
-
-    apple_sio_dma_write(s->rx_ep, buf, avail);
+    uint8_t *buf = g_malloc0(buf_size);
+    apple_sio_dma_write(s->rx_ep, buf, buf_size);
+    apple_sio_dma_read(s->tx_ep, buf, buf_size);
+    AUD_write(s->voice, buf, buf_size);
+    g_free(buf);
 }
 
 
