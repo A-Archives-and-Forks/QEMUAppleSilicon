@@ -56,6 +56,11 @@
 #define DEV_PROP_PCM_NUM_SUPPORTED_ASSETS (0xC8)
 #define DEV_PROP_PCM_NUM_SUPPORTED_ASSETS_LEN (4)
 
+#define DEV_LEAP_FW 'lpfw'
+// AppleAOPAudioFirmware::FirmwareAssetProperties::kFirmwareBufferBytesMax
+#define DEV_PROP_LEAP_FW_BUFFER_BYTES_MAX (0xC9)
+#define DEV_PROP_LEAP_FW_BUFFER_BYTES_MAX_LEN (8)
+
 #define DEV_PROP_STATE (0xC8)
 #define DEV_PROP_STATE_LEN (4)
 #define DEV_PROP_SUPPORTS_HISTORICAL_DATA (0x12C)
@@ -229,11 +234,28 @@ static AppleAOPResult apple_aop_audio_handle_command(void *opaque, uint16_t seq,
                 break;
             }
             break;
+        case 'aphc':
+        case 'aph ':
+            switch (ldl_le_p(payload + COMMAND_HDR_LEN + 4)) {
+            case DEV_PROP_STATE:
+                stl_le_p(payload_out, DEV_PROP_STATE_LEN);
+                stl_le_p(payload_out + 4, 'pw1 ');
+                break;
+            }
+            break;
         case DEV_PCM_MGR:
             switch (ldl_le_p(payload + COMMAND_HDR_LEN + 4)) {
             case DEV_PROP_PCM_NUM_SUPPORTED_ASSETS:
                 stl_le_p(payload_out, DEV_PROP_PCM_NUM_SUPPORTED_ASSETS_LEN);
                 stl_le_p(payload_out + 4, 2);
+                break;
+            }
+            break;
+        case DEV_LEAP_FW:
+            switch (ldl_le_p(payload + COMMAND_HDR_LEN + 4)) {
+            case DEV_PROP_LEAP_FW_BUFFER_BYTES_MAX:
+                stl_le_p(payload_out, DEV_PROP_LEAP_FW_BUFFER_BYTES_MAX_LEN);
+                stq_le_p(payload_out + 4, 128 * KiB);
                 break;
             }
             break;
