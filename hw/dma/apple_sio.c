@@ -257,11 +257,11 @@ static bool apple_sio_dma_map_buf(AppleSIODMAEndpoint *ep, SIODMABuffer *buf)
         dma_addr_t base = buf->sgl.sg[i].base;
         dma_addr_t len = buf->sgl.sg[i].len;
 
-        while (len) {
+        while (len != 0) {
             dma_addr_t xlen = len;
             void *mem = dma_memory_map(buf->sgl.as, base, &xlen, ep->direction,
                                        MEMTXATTRS_UNSPECIFIED);
-            if (mem == NULL) {
+            if (mem == NULL || xlen == 0) {
                 qemu_log_mask(LOG_GUEST_ERROR,
                               "%s: dma_memory_map failed; buf->tag=%d, "
                               "base=0x%" HWADDR_PRIX ", len=0x%" HWADDR_PRIX
@@ -271,9 +271,6 @@ static bool apple_sio_dma_map_buf(AppleSIODMAEndpoint *ep, SIODMABuffer *buf)
                 return false;
             }
 
-            if (xlen > len) {
-                xlen = len;
-            }
             qemu_iovec_add(&buf->iov, mem, xlen);
             len -= xlen;
             base += xlen;
