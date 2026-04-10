@@ -278,13 +278,13 @@ uint64_t apple_sio_dma_read(AppleSIODMAEndpoint *ep, void *buffer, uint64_t len)
     uint64_t iovec_len;
     uint64_t actual_len = 0;
 
+    assert_cmpuint(ep->direction, ==, DMA_DIRECTION_TO_DEVICE);
+
     if (len == 0) {
         return 0;
     }
 
     QEMU_LOCK_GUARD(&ep->mutex);
-
-    assert_cmpuint(ep->direction, ==, DMA_DIRECTION_TO_DEVICE);
 
     s = container_of(ep, AppleSIOState, eps[ep->id]);
 
@@ -313,13 +313,13 @@ uint64_t apple_sio_dma_write(AppleSIODMAEndpoint *ep, void *buffer,
     uint64_t iovec_len;
     uint64_t actual_len = 0;
 
+    assert_cmpuint(ep->direction, ==, DMA_DIRECTION_FROM_DEVICE);
+
     if (len == 0) {
         return 0;
     }
 
     QEMU_LOCK_GUARD(&ep->mutex);
-
-    assert_cmpuint(ep->direction, ==, DMA_DIRECTION_FROM_DEVICE);
 
     s = container_of(ep, AppleSIOState, eps[ep->id]);
 
