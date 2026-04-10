@@ -35,6 +35,7 @@
 #include "hw/audio/apple-silicon/aop-audio.h"
 #include "hw/audio/apple-silicon/cs35l27.h"
 #include "hw/audio/apple-silicon/cs42l77.h"
+#include "hw/audio/apple-silicon/mca.h"
 #include "hw/block/apple-silicon/ans.h"
 #include "hw/char/apple_uart.h"
 #include "hw/display/apple_displaypipe_v4.h"
@@ -2416,21 +2417,33 @@ static void t8030_create_aop(AppleT8030MachineState *t8030)
 static void t8030_create_mca(AppleT8030MachineState *t8030)
 {
     AppleDTNode *child;
+    AppleSIOState *sio;
+    // DTBNode *mca5;
+    SysBusDevice *sbd;
     AppleDTProp *prop;
-    uint64_t *reg;
 
     child = apple_dt_get_node(t8030->device_tree, "arm-io/mca-switch");
     assert_nonnull(child);
 
+    sio =
+        APPLE_SIO(object_property_get_link(OBJECT(t8030), "sio", &error_fatal));
+    sbd = apple_mca_create(child, apple_sio_get_endpoint(sio, 0x7A),
+                           apple_sio_get_endpoint(sio, 0x7B));
+
     prop = apple_dt_get_prop(child, "reg");
     assert_nonnull(prop);
-    reg = (uint64_t *)prop->data;
 
-    create_unimplemented_device("mca.sio", t8030->armio_base + reg[0], reg[1]);
-    create_unimplemented_device("mca.dma", t8030->armio_base + reg[2], reg[3]);
-    create_unimplemented_device("mca.mclk_cfg", t8030->armio_base + reg[4],
-                                reg[5]);
-    create_unimplemented_device("mca.unk", t8030->armio_base + reg[6], reg[7]);
+    sysbus_mmio_map(sbd, APPLE_MCA_MMIO_SIO,
+                    t8030->armio_base + ldq_le_p(prop->data));
+    sysbus_mmio_map(sbd, APPLE_MCA_MMIO_DMA,
+                    t8030->armio_base +
+                        ldq_le_p(prop->data + sizeof(uint64_t) * 2));
+    sysbus_mmio_map(sbd, APPLE_MCA_MMIO_MCLK_CFG,
+                    t8030->armio_base +
+                        ldq_le_p(prop->data + sizeof(uint64_t) * 4));
+
+    object_property_add_child(OBJECT(t8030), "mca", OBJECT(sbd));
+    sysbus_realize_and_unref(sbd, &error_fatal);
 }
 
 static void t8030_create_speaker_top(AppleT8030MachineState *t8030)
