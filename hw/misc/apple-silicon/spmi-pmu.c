@@ -112,7 +112,7 @@ static void apple_spmi_pmu_alarm(void *opaque)
 static void apple_spmi_pmu_set_alarm(AppleSPMIPMUState *pmu)
 {
     int64_t now = qemu_clock_get_ns(rtc_clock);
-    int64_t seconds = (int64_t)pmu->reg[pmu->reg_alarm] -
+    int64_t seconds = (int64_t)ldl_le_p(&pmu->reg[pmu->reg_alarm]) -
                       (int64_t)(apple_rtc_ns_to_tick(pmu, now) >> 15);
 
     if (pmu->reg[pmu->reg_alarm_ctrl] & R_RTC_CONTROL_ALARM_EN_MASK) {
