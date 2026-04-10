@@ -1856,7 +1856,9 @@ static void t8030_create_sio(AppleT8030MachineState *t8030)
     iop_nub = apple_dt_get_node(child, "iop-sio-nub");
     assert_nonnull(iop_nub);
 
-    sio = apple_sio_from_node(child, APPLE_A7IOP_V4, t8030->sio_protocol);
+    // a13.c
+    sio = apple_sio_from_node(child, APPLE_A7IOP_V4, t8030->sio_protocol,
+                              24000000);
     object_property_add_child(OBJECT(t8030), "sio", OBJECT(sio));
 
     prop = apple_dt_get_prop(child, "reg");

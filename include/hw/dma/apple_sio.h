@@ -20,6 +20,7 @@ AppleSIODMAEndpoint *apple_sio_get_endpoint(AppleSIOState *s, int ep);
 AppleSIODMAEndpoint *
 apple_sio_get_endpoint_from_node(AppleSIOState *s, AppleDTNode *node, int idx);
 SysBusDevice *apple_sio_from_node(AppleDTNode *node, AppleA7IOPVersion version,
-                                  uint32_t protocol_version);
+                                  uint32_t protocol_version,
+                                  uint64_t gtimer_freq);
 
 #endif /* HW_DMA_APPLE_SIO_H */

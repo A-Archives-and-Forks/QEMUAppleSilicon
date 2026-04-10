@@ -95,9 +95,10 @@ struct AppleSIOState {
     AddressSpace dma_as;
     AppleSIODMAEndpoint eps[SIO_NUM_EPS];
     uint32_t protocol_version;
-    uint64_t segment_base;
     uint32_t segment_size;
+    uint64_t segment_base;
     uint64_t resp_base;
+    uint64_t gtimer_freq;
 };
 
 typedef enum {
@@ -202,30 +203,42 @@ static void apple_sio_dma_stop(AppleSIODMAEndpoint *ep)
     }
 }
 
+// -- internal references --
+// Firestorm$Inferno/18A5351d/sio.bndb@00009f14{armv8_timebase_get_current}
+// -- end internal references --
+static uint64_t apple_sio_get_cur_ts(AppleSIOState *s)
+{
+    return qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) /
+           (NANOSECONDS_PER_SECOND > s->gtimer_freq ?
+                NANOSECONDS_PER_SECOND / s->gtimer_freq :
+                1);
+}
+
 static void apple_sio_dma_writeback(AppleSIOState *s, AppleSIODMAEndpoint *ep,
                                     SIODMABuffer *buf)
 {
     AppleRTKit *rtk = &s->parent_obj;
     SIOMessage m = { 0 };
-    dma_addr_t resp_addr;
+    dma_addr_t resp_off;
     uint64_t end_timestamp;
 
-    end_timestamp = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    end_timestamp = apple_sio_get_cur_ts(s);
+
+    // -- internal references --
+    // Firestorm$Inferno/18A5351d/sio.bndb@00002b0c
+    // Firestorm$Inferno/18A5351d/sio.bndb@00001c08
+    // -- end internal references --
+    resp_off = ((buf->tag - 1) + (ep->id * 0x20)) * 0x10;
+    stq_le_dma(&s->dma_as, s->resp_base + resp_off, buf->start_timestamp,
+               MEMTXATTRS_UNSPECIFIED);
+    stq_le_dma(&s->dma_as, s->resp_base + resp_off + 8, end_timestamp,
+               MEMTXATTRS_UNSPECIFIED);
 
     m.op = OP_COMPLETE;
     m.ep = ep->id;
     m.param = BIT(7);
     m.tag = buf->tag;
     m.data = buf->completed;
-
-    // -- internal references --
-    // Firestorm$Inferno/18A5351d/sio.bndb@00002b0c
-    // -- end internal references --
-    resp_addr = ((buf->tag - 1) + (ep->id * 0x20)) * 0x10;
-    stq_le_dma(&s->dma_as, s->resp_base + resp_addr, buf->start_timestamp,
-               MEMTXATTRS_UNSPECIFIED);
-    stq_le_dma(&s->dma_as, s->resp_base + resp_addr + 8, end_timestamp,
-               MEMTXATTRS_UNSPECIFIED);
 
     apple_sio_dma_destroy_buffer(ep, buf);
 
@@ -471,7 +484,6 @@ static void apple_sio_dma(AppleSIOState *s, AppleSIODMAEndpoint *ep,
             break;
         }
 
-        buf->start_timestamp = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
         qemu_sglist_init(&buf->sgl, DEVICE(s), segment_count, &s->dma_as);
         buf->tag = m.tag;
         buf->segment_count = segment_count;
@@ -480,6 +492,8 @@ static void apple_sio_dma(AppleSIOState *s, AppleSIODMAEndpoint *ep,
                             buf->segments[i].len);
         }
         QTAILQ_INSERT_TAIL(&ep->buffers, buf, next);
+
+        buf->start_timestamp = apple_sio_get_cur_ts(s);
 
         reply.op = OP_ACK;
         break;
@@ -789,7 +803,8 @@ static void apple_sio_register_types(void)
 type_init(apple_sio_register_types);
 
 SysBusDevice *apple_sio_from_node(AppleDTNode *node, AppleA7IOPVersion version,
-                                  uint32_t protocol_version)
+                                  uint32_t protocol_version,
+                                  uint64_t gtimer_freq)
 {
     DeviceState *dev;
     AppleSIOState *s;
@@ -799,6 +814,8 @@ SysBusDevice *apple_sio_from_node(AppleDTNode *node, AppleA7IOPVersion version,
     AppleDTProp *prop;
     uint64_t *reg;
 
+    assert_false(gtimer_freq == 0);
+
     dev = qdev_new(TYPE_APPLE_SIO);
     s = APPLE_SIO(dev);
     sbd = SYS_BUS_DEVICE(dev);
@@ -807,6 +824,7 @@ SysBusDevice *apple_sio_from_node(AppleDTNode *node, AppleA7IOPVersion version,
     dev->id = g_strdup("sio");
 
     s->protocol_version = protocol_version;
+    s->gtimer_freq = gtimer_freq;
 
     child = apple_dt_get_node(node, "iop-sio-nub");
     assert_nonnull(child);
