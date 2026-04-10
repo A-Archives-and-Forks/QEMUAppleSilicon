@@ -213,7 +213,7 @@ DeviceState *apple_spmi_pmu_from_node(AppleDTNode *node)
 
     apple_spmi_pmu_set_tick_offset(pmu, apple_rtc_get_current_tick(pmu));
 
-    pmu->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, apple_spmi_pmu_alarm, pmu);
+    pmu->timer = timer_new_ns(rtc_clock, apple_spmi_pmu_alarm, pmu);
     qemu_system_wakeup_enable(QEMU_WAKEUP_REASON_RTC, true);
 
     qdev_init_gpio_out(dev, &pmu->irq, 1);
