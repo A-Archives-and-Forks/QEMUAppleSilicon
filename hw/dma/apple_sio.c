@@ -215,14 +215,11 @@ static uint64_t apple_sio_get_cur_ts(AppleSIOState *s)
 }
 
 static void apple_sio_dma_writeback(AppleSIOState *s, AppleSIODMAEndpoint *ep,
-                                    SIODMABuffer *buf)
+                                    SIODMABuffer *buf, uint64_t end_timestamp)
 {
     AppleRTKit *rtk = &s->parent_obj;
     SIOMessage m = { 0 };
     dma_addr_t resp_off;
-    uint64_t end_timestamp;
-
-    end_timestamp = apple_sio_get_cur_ts(s);
 
     // -- internal references --
     // Firestorm$Inferno/18A5351d/sio.bndb@00002b0c
@@ -287,6 +284,7 @@ uint64_t apple_sio_dma_read(AppleSIODMAEndpoint *ep, void *buffer, uint64_t len)
     SIODMABuffer *buf;
     uint64_t iovec_len;
     uint64_t actual_len = 0;
+    uint64_t end_timestamp;
 
     assert_cmpuint(ep->direction, ==, DMA_DIRECTION_TO_DEVICE);
 
@@ -298,6 +296,7 @@ uint64_t apple_sio_dma_read(AppleSIODMAEndpoint *ep, void *buffer, uint64_t len)
 
     s = container_of(ep, AppleSIOState, eps[ep->id]);
 
+    end_timestamp = apple_sio_get_cur_ts(s);
     while (len > actual_len) {
         buf = QTAILQ_FIRST(&ep->buffers);
         if (buf == NULL || !apple_sio_dma_map_buf(ep, buf)) {
@@ -308,7 +307,7 @@ uint64_t apple_sio_dma_read(AppleSIODMAEndpoint *ep, void *buffer, uint64_t len)
         actual_len += iovec_len;
         buf->completed += iovec_len;
         if (buf->completed >= buf->iov.size) {
-            apple_sio_dma_writeback(s, ep, buf);
+            apple_sio_dma_writeback(s, ep, buf, end_timestamp);
         }
     }
 
@@ -322,6 +321,7 @@ uint64_t apple_sio_dma_write(AppleSIODMAEndpoint *ep, void *buffer,
     SIODMABuffer *buf;
     uint64_t iovec_len;
     uint64_t actual_len = 0;
+    uint64_t end_timestamp;
 
     assert_cmpuint(ep->direction, ==, DMA_DIRECTION_FROM_DEVICE);
 
@@ -332,6 +332,7 @@ uint64_t apple_sio_dma_write(AppleSIODMAEndpoint *ep, void *buffer,
     QEMU_LOCK_GUARD(&ep->mutex);
 
     s = container_of(ep, AppleSIOState, eps[ep->id]);
+    end_timestamp = apple_sio_get_cur_ts(s);
 
     while (len > actual_len) {
         buf = QTAILQ_FIRST(&ep->buffers);
@@ -343,7 +344,7 @@ uint64_t apple_sio_dma_write(AppleSIODMAEndpoint *ep, void *buffer,
         actual_len += iovec_len;
         buf->completed += iovec_len;
         if (buf->completed >= buf->iov.size) {
-            apple_sio_dma_writeback(s, ep, buf);
+            apple_sio_dma_writeback(s, ep, buf, end_timestamp);
         }
     }
 
