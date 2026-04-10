@@ -22,7 +22,14 @@
 #include "hw/audio/apple-silicon/mca.h"
 #include "qemu/error-report.h"
 #include "qemu/fifo32.h"
-#include "qemu/timer.h"
+
+#if 0
+#define MCA_DPRINTF(fmt, ...) fprintf(stderr, fmt, ##__VA_ARGS__)
+#else
+#define MCA_DPRINTF(fmt, ...) \
+    do {                      \
+    } while (0)
+#endif
 
 // MMIO Index 0: SmartIO MCA
 #define MCA_SIO_REG_STRIDE (0x4000)
@@ -184,7 +191,7 @@ static void apple_mca_sio_reg_write(void *opaque, hwaddr addr, uint64_t data,
     index = addr / MCA_SIO_REG_STRIDE;
     off = addr % MCA_SIO_REG_STRIDE;
 
-    fprintf(stderr, "sio_cluster_%lld: 0x%llX <- 0x%llX\n", index, off, data);
+    MCA_DPRINTF("sio_cluster_%lld: 0x%llX <- 0x%llX\n", index, off, data);
 
     switch (off) {
     case RXB_REG_BASE + REG_RX_CFG:
@@ -228,8 +235,8 @@ static uint64_t apple_mca_sio_reg_read(void *const opaque, const hwaddr addr,
         break;
     }
 
-    fprintf(stderr, "sio_cluster_%lld: 0x%llX -> 0x%llX\n", index, off, ret);
-    return 0;
+    MCA_DPRINTF("sio_cluster_%lld: 0x%llX -> 0x%llX\n", index, off, ret);
+    return ret;
 }
 
 static const MemoryRegionOps apple_mca_sio_ops = {
@@ -253,7 +260,7 @@ static void apple_mca_dma_reg_write(void *opaque, hwaddr addr, uint64_t data,
     index = addr / MCA_DMA_REG_STRIDE;
     off = addr % MCA_DMA_REG_STRIDE;
 
-    fprintf(stderr, "dma_cluster_%lld: 0x%llX <- 0x%llX\n", index, off, data);
+    MCA_DPRINTF("dma_cluster_%lld: 0x%llX <- 0x%llX\n", index, off, data);
 
     switch (off) {
     case REG_MCA_DMA_CFG:
@@ -296,7 +303,7 @@ static uint64_t apple_mca_dma_reg_read(void *const opaque, const hwaddr addr,
         ret = 0;
         break;
     }
-    fprintf(stderr, "dma_cluster_%lld: 0x%llX -> 0x%llX\n", index, off, ret);
+    MCA_DPRINTF("dma_cluster_%lld: 0x%llX -> 0x%llX\n", index, off, ret);
     return ret;
 }
 
@@ -321,7 +328,7 @@ static void apple_mca_mclk_reg_write(void *opaque, hwaddr addr, uint64_t data,
     index = addr / MCLK_CFG_REG_STRIDE;
     off = addr % MCLK_CFG_REG_STRIDE;
 
-    fprintf(stderr, "mclk_cluster_%lld: 0x%llX <- 0x%llX\n", index, off, data);
+    MCA_DPRINTF("mclk_cluster_%lld: 0x%llX <- 0x%llX\n", index, off, data);
 
     switch (off) {
     case REG_MCLK_CFG:
@@ -351,7 +358,7 @@ static uint64_t apple_mca_mclk_reg_read(void *const opaque, const hwaddr addr,
         ret = 0;
         break;
     }
-    fprintf(stderr, "mclk_cluster_%lld: 0x%llX -> 0x%llX\n", index, off, ret);
+    MCA_DPRINTF("mclk_cluster_%lld: 0x%llX -> 0x%llX\n", index, off, ret);
     return ret;
 }
 
