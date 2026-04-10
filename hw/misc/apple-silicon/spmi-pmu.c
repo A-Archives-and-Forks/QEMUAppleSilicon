@@ -116,7 +116,7 @@ static void apple_spmi_pmu_set_alarm(AppleSPMIPMUState *pmu)
                       (int64_t)(apple_rtc_ns_to_tick(pmu, now) >> 15);
 
     if (pmu->reg[pmu->reg_alarm_ctrl] & R_RTC_CONTROL_ALARM_EN_MASK) {
-        if (seconds == 0) {
+        if (seconds <= 0) {
             timer_del(pmu->timer);
             apple_spmi_pmu_alarm(pmu);
         } else {
