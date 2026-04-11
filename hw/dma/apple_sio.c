@@ -193,16 +193,6 @@ static void apple_sio_dma_destroy_buffer(AppleSIODMAEndpoint *ep,
     g_free(buf);
 }
 
-static void apple_sio_dma_stop(AppleSIODMAEndpoint *ep)
-{
-    SIODMABuffer *buf;
-    SIODMABuffer *buf_next;
-
-    QTAILQ_FOREACH_SAFE (buf, &ep->buffers, next, buf_next) {
-        apple_sio_dma_destroy_buffer(ep, buf);
-    }
-}
-
 // -- internal references --
 // Firestorm$Inferno/18A5351d/sio.bndb@00009f14{armv8_timebase_get_current}
 // -- end internal references --
@@ -214,22 +204,62 @@ static uint64_t apple_sio_get_cur_ts(AppleSIOState *s)
                 1);
 }
 
-static void apple_sio_dma_writeback(AppleSIOState *s, AppleSIODMAEndpoint *ep,
-                                    SIODMABuffer *buf, uint64_t end_timestamp)
+// -- internal references --
+// Firestorm$Inferno/18A5351d/sio.bndb@00002b0c
+// Firestorm$Inferno/18A5351d/sio.bndb@00001c08
+// -- end internal references --
+static void apple_sio_write_buf_resp(AppleSIOState *s, AppleSIODMAEndpoint *ep,
+                                     SIODMABuffer *buf, uint64_t end_timestamp)
 {
-    AppleRTKit *rtk = &s->parent_obj;
-    SIOMessage m = { 0 };
     dma_addr_t resp_off;
 
-    // -- internal references --
-    // Firestorm$Inferno/18A5351d/sio.bndb@00002b0c
-    // Firestorm$Inferno/18A5351d/sio.bndb@00001c08
-    // -- end internal references --
     resp_off = ((buf->tag - 1) + (ep->id * 0x20)) * 0x10;
     stq_le_dma(&s->dma_as, s->resp_base + resp_off, buf->start_timestamp,
                MEMTXATTRS_UNSPECIFIED);
     stq_le_dma(&s->dma_as, s->resp_base + resp_off + 8, end_timestamp,
                MEMTXATTRS_UNSPECIFIED);
+}
+
+static void apple_sio_dma_del_buffers(AppleSIODMAEndpoint *ep)
+{
+    SIODMABuffer *buf;
+    SIODMABuffer *buf_next;
+
+    QTAILQ_FOREACH_SAFE (buf, &ep->buffers, next, buf_next) {
+        apple_sio_dma_destroy_buffer(ep, buf);
+    }
+}
+
+// -- internal references --
+// Firestorm$Inferno/18A5351d/sio.bndb@000030e4{sio_endpoint::handle_message}+0x64
+// -- end internal references --
+static void apple_sio_dma_stop(AppleSIOState *s, AppleSIODMAEndpoint *ep)
+{
+    SIODMABuffer *buf;
+    SIODMABuffer *buf_next;
+    uint64_t end_timestamp;
+    SIOMessage m = { 0 };
+    AppleRTKit *rtk = &s->parent_obj;
+
+    end_timestamp = apple_sio_get_cur_ts(s);
+
+    QTAILQ_FOREACH_SAFE (buf, &ep->buffers, next, buf_next) {
+        apple_sio_write_buf_resp(s, ep, buf, end_timestamp);
+        apple_sio_dma_destroy_buffer(ep, buf);
+    }
+
+    m.op = OP_COMPLETE;
+    m.ep = ep->id;
+    apple_rtkit_send_user_msg(rtk, EP_CONTROL, m.raw);
+}
+
+static void apple_sio_dma_writeback(AppleSIOState *s, AppleSIODMAEndpoint *ep,
+                                    SIODMABuffer *buf, uint64_t end_timestamp)
+{
+    AppleRTKit *rtk = &s->parent_obj;
+    SIOMessage m = { 0 };
+
+    apple_sio_write_buf_resp(s, ep, buf, end_timestamp);
 
     m.op = OP_COMPLETE;
     m.ep = ep->id;
@@ -508,9 +538,7 @@ static void apple_sio_dma(AppleSIOState *s, AppleSIODMAEndpoint *ep,
     case OP_STOP:
         reply.op = OP_ACK;
         apple_rtkit_send_user_msg(rtk, EP_CONTROL, reply.raw);
-        apple_sio_dma_stop(ep);
-        reply.op = OP_COMPLETE;
-        apple_rtkit_send_user_msg(rtk, EP_CONTROL, reply.raw);
+        apple_sio_dma_stop(s, ep);
         return;
     default:
         qemu_log_mask(LOG_UNIMP, "%s: Unknown SIO op: %d\n", __func__, m.op);
@@ -640,7 +668,7 @@ static void apple_sio_reset_hold(Object *obj, ResetType type)
     s->segment_size = 0;
 
     for (size_t i = 0; i < SIO_NUM_EPS; ++i) {
-        apple_sio_dma_stop(&s->eps[i]);
+        apple_sio_dma_del_buffers(&s->eps[i]);
 
         s->eps[i].config = (SIODMAConfig){ 0 };
     }
@@ -678,9 +706,7 @@ static const VMStateDescription vmstate_sio_dma_segment = {
 static int vmstate_apple_sio_dma_endpoint_pre_load(void *opaque)
 {
     AppleSIODMAEndpoint *ep = opaque;
-
-    apple_sio_dma_stop(ep);
-
+    apple_sio_dma_del_buffers(ep);
     return 0;
 }
 
