@@ -829,23 +829,6 @@ static inline int64_t get_clock(void)
     return muldiv64(ti.QuadPart, NANOSECONDS_PER_SECOND, clock_freq);
 }
 
-#elif defined(__APPLE__)
-
-#include <mach/mach_time.h>
-
-extern mach_timebase_info_data_t tb;
-
-static inline int64_t get_clock(void)
-{
-    uint64_t t;
-#ifdef __aarch64__
-    __asm__ volatile("mrs %0, CNTPCT_EL0" : "=r"(t));
-#else
-    t = mach_continuous_time();
-#endif
-    return (int64_t)(t * tb.numer / tb.denom);
-}
-
 #else
 
 extern int use_rt_clock;
