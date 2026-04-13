@@ -152,6 +152,7 @@ struct AppleMCAState {
     AppleSIODMAEndpoint *rx_ep;
     QEMUSoundCard card;
     SWVoiceOut *voice;
+    uint8_t buf[32768];
 };
 
 static void apple_mca_class_init(ObjectClass *klass, const void *data)
@@ -377,28 +378,26 @@ static void apple_mca_out_callback(void *opaque, int avail)
 {
     AppleMCAState *s = opaque;
 
-    // if ((s->sio_clusters[5].txb_control & SIO_UNIT_CTL_ENABLE) == 0 ||
-    //     s->dma_clusters[11].config == 0) {
-    //     return;
-    // }
+    uint8_t *temp = s->buf;
+    int64_t to_play = avail;
 
-    // const uint32_t bytes_per_sec = 44100 * 2 * 2;
-    // const size_t max_chunk_ms = 15;
-    // const size_t max_chunk = (bytes_per_sec * max_chunk_ms) / 1000;
+    while (to_play > 0) {
+        uint32_t chunk = MIN(to_play, sizeof(s->buf));
 
-    size_t buf_size =
-        ROUND_DOWN(MIN(avail, MIN(apple_sio_dma_remaining(s->tx_ep),
-                                  apple_sio_dma_remaining(s->rx_ep))),
-                   2 * 2);
-    if (buf_size == 0) {
-        return;
+        uint32_t pulled = apple_sio_dma_read(s->tx_ep, temp, chunk);
+        if (pulled == 0) {
+            memset(temp, 0, chunk);
+            pulled = chunk;
+        }
+
+        uint32_t written = apple_sio_dma_write(s->rx_ep, temp, pulled);
+        written = AUD_write(s->voice, temp, written);
+
+        to_play -= written;
+        if (written < pulled) {
+            break;
+        }
     }
-
-    uint8_t *buf = g_malloc0(buf_size);
-    apple_sio_dma_write(s->rx_ep, buf, buf_size);
-    apple_sio_dma_read(s->tx_ep, buf, buf_size);
-    AUD_write(s->voice, buf, buf_size);
-    g_free(buf);
 }
 
 
