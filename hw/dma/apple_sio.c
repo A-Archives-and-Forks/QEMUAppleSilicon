@@ -204,22 +204,6 @@ static uint64_t apple_sio_get_cur_ts(AppleSIOState *s)
                 1);
 }
 
-// -- internal references --
-// Firestorm$Inferno/18A5351d/sio.bndb@00002b0c
-// Firestorm$Inferno/18A5351d/sio.bndb@00001c08
-// -- end internal references --
-static void apple_sio_write_buf_resp(AppleSIOState *s, AppleSIODMAEndpoint *ep,
-                                     SIODMABuffer *buf, uint64_t end_timestamp)
-{
-    dma_addr_t resp_off;
-
-    resp_off = ((buf->tag - 1) + (ep->id * 0x20)) * 0x10;
-    stq_le_dma(&s->dma_as, s->resp_base + resp_off, buf->start_timestamp,
-               MEMTXATTRS_UNSPECIFIED);
-    stq_le_dma(&s->dma_as, s->resp_base + resp_off + 8, end_timestamp,
-               MEMTXATTRS_UNSPECIFIED);
-}
-
 static void apple_sio_dma_del_buffers(AppleSIODMAEndpoint *ep)
 {
     SIODMABuffer *buf;
@@ -237,14 +221,10 @@ static void apple_sio_dma_stop(AppleSIOState *s, AppleSIODMAEndpoint *ep)
 {
     SIODMABuffer *buf;
     SIODMABuffer *buf_next;
-    uint64_t end_timestamp;
     SIOMessage m = { 0 };
     AppleRTKit *rtk = &s->parent_obj;
 
-    end_timestamp = apple_sio_get_cur_ts(s);
-
     QTAILQ_FOREACH_SAFE (buf, &ep->buffers, next, buf_next) {
-        apple_sio_write_buf_resp(s, ep, buf, end_timestamp);
         apple_sio_dma_destroy_buffer(ep, buf);
     }
 
@@ -254,12 +234,24 @@ static void apple_sio_dma_stop(AppleSIOState *s, AppleSIODMAEndpoint *ep)
 }
 
 static void apple_sio_dma_writeback(AppleSIOState *s, AppleSIODMAEndpoint *ep,
-                                    SIODMABuffer *buf, uint64_t end_timestamp)
+                                    SIODMABuffer *buf)
 {
     AppleRTKit *rtk = &s->parent_obj;
     SIOMessage m = { 0 };
+    uint64_t end_timestamp;
+    dma_addr_t resp_off;
 
-    apple_sio_write_buf_resp(s, ep, buf, end_timestamp);
+    // -- internal references --
+    // Firestorm$Inferno/18A5351d/sio.bndb@00002b0c
+    // Firestorm$Inferno/18A5351d/sio.bndb@00001c08
+    // -- end internal references --
+    end_timestamp = apple_sio_get_cur_ts(s);
+    resp_off = ((buf->tag - 1) + (ep->id * 0x20)) * 0x10;
+    stq_le_dma(&s->dma_as, s->resp_base + resp_off, buf->start_timestamp,
+               MEMTXATTRS_UNSPECIFIED);
+    stq_le_dma(&s->dma_as, s->resp_base + resp_off + 8, end_timestamp,
+               MEMTXATTRS_UNSPECIFIED);
+
 
     m.op = OP_COMPLETE;
     m.ep = ep->id;
@@ -314,7 +306,6 @@ uint64_t apple_sio_dma_read(AppleSIODMAEndpoint *ep, void *buffer, uint64_t len)
     SIODMABuffer *buf;
     uint64_t iovec_len;
     uint64_t actual_len = 0;
-    uint64_t end_timestamp;
 
     assert_cmpuint(ep->direction, ==, DMA_DIRECTION_TO_DEVICE);
 
@@ -326,7 +317,6 @@ uint64_t apple_sio_dma_read(AppleSIODMAEndpoint *ep, void *buffer, uint64_t len)
 
     s = container_of(ep, AppleSIOState, eps[ep->id]);
 
-    end_timestamp = apple_sio_get_cur_ts(s);
     while (len > actual_len) {
         buf = QTAILQ_FIRST(&ep->buffers);
         if (buf == NULL || !apple_sio_dma_map_buf(ep, buf)) {
@@ -337,7 +327,7 @@ uint64_t apple_sio_dma_read(AppleSIODMAEndpoint *ep, void *buffer, uint64_t len)
         actual_len += iovec_len;
         buf->completed += iovec_len;
         if (buf->completed >= buf->iov.size) {
-            apple_sio_dma_writeback(s, ep, buf, end_timestamp);
+            apple_sio_dma_writeback(s, ep, buf);
         }
     }
 
@@ -351,7 +341,6 @@ uint64_t apple_sio_dma_write(AppleSIODMAEndpoint *ep, void *buffer,
     SIODMABuffer *buf;
     uint64_t iovec_len;
     uint64_t actual_len = 0;
-    uint64_t end_timestamp;
 
     assert_cmpuint(ep->direction, ==, DMA_DIRECTION_FROM_DEVICE);
 
@@ -362,7 +351,6 @@ uint64_t apple_sio_dma_write(AppleSIODMAEndpoint *ep, void *buffer,
     QEMU_LOCK_GUARD(&ep->mutex);
 
     s = container_of(ep, AppleSIOState, eps[ep->id]);
-    end_timestamp = apple_sio_get_cur_ts(s);
 
     while (len > actual_len) {
         buf = QTAILQ_FIRST(&ep->buffers);
@@ -374,7 +362,7 @@ uint64_t apple_sio_dma_write(AppleSIODMAEndpoint *ep, void *buffer,
         actual_len += iovec_len;
         buf->completed += iovec_len;
         if (buf->completed >= buf->iov.size) {
-            apple_sio_dma_writeback(s, ep, buf, end_timestamp);
+            apple_sio_dma_writeback(s, ep, buf);
         }
     }
 
