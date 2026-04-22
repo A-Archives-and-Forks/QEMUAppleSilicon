@@ -45,19 +45,14 @@ typedef struct XenPTReg XenPTReg;
 
 
 #define TYPE_XEN_PT_DEVICE "xen-pci-passthrough"
-OBJECT_DECLARE_SIMPLE_TYPE(XenPCIPassthroughState, XEN_PT_DEVICE)
-
-#define XEN_PT_DEVICE_CLASS(klass) \
-    OBJECT_CLASS_CHECK(XenPTDeviceClass, klass, TYPE_XEN_PT_DEVICE)
-#define XEN_PT_DEVICE_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(XenPTDeviceClass, obj, TYPE_XEN_PT_DEVICE)
+OBJECT_DECLARE_TYPE(XenPCIPassthroughState, XenPTDeviceClass, XEN_PT_DEVICE)
 
 typedef void (*XenPTQdevRealize)(DeviceState *qdev, Error **errp);
 
-typedef struct XenPTDeviceClass {
+struct XenPTDeviceClass {
     PCIDeviceClass parent_class;
     XenPTQdevRealize pci_qdev_realize;
-} XenPTDeviceClass;
+};
 
 /* function type for config reg */
 typedef int (*xen_pt_conf_reg_init)
