@@ -609,9 +609,6 @@ SysBusDevice *apple_smc_create(AppleDTNode *node, AppleA7IOPVersion version,
     apple_smc_add_sensor(s, 'Tarc', 8, SMC_KEY_TYPE_IOFLT, SMC_ATTR_R_LE, NULL);
     // ---------
 
-    // Pressure. From AOP/SPU. FIXME: Replace with AOP HID service.
-    apple_smc_add_key(s, 'Prs0', 8, SMC_KEY_TYPE_IOFLT, SMC_ATTR_RW_LE, NULL);
-
     apple_smc_add_key(s, 'D0VR', 2, SMC_KEY_TYPE_UINT16, SMC_ATTR_R_LE, NULL);
     apple_smc_add_key(s, 'D1VR', 2, SMC_KEY_TYPE_UINT16, SMC_ATTR_R_LE, NULL);
     apple_smc_add_key(s, 'D2VR', 2, SMC_KEY_TYPE_UINT16, SMC_ATTR_R_LE, NULL);
