@@ -258,11 +258,11 @@ endforeach
 
 qemu_common_flags = [
   '-D_GNU_SOURCE', '-D_FILE_OFFSET_BITS=64', '-D_LARGEFILE_SOURCE',
-  '-fwrapv' ]
+  '-fno-strict-aliasing', '-fno-common', '-fwrapv' ]
 if get_option('debug')
   qemu_common_flags += ['-DDEBUG', '-fno-omit-frame-pointer']
 else
-  qemu_common_flags += ['-DNDEBUG', '-D__OPTIMIZE__']
+  qemu_common_flags += ['-DG_DISABLE_ASSERT', '-DNDEBUG', '-D__OPTIMIZE__']
 endif
 qemu_cflags = []
 qemu_ldflags = []
